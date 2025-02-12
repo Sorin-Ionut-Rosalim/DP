@@ -1,0 +1,27 @@
+# Node modules
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Logs
+*.log
+
+# Environment variables & secrets
+.env
+
+# Mac/Windows system files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+coverage/
+
+# Temporary 'repo-...' folders if you're cloning repos inside 'backend'
+backend/repo-*
+
+
+sonartoken.txt
+apptutorial.md
+
