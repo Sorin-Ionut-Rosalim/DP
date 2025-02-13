@@ -6,17 +6,16 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
-const db = require('./db');
+const pool = require('./db');
 
 /***** 2. Initialize App *****/
 const app = express();
 app.use(express.json());
-app.use(cors());
 
-// Session middleware:
+// CORS and Session config
 app.use(cors({
   origin: 'http://localhost:3000', // React app address
-  credentials: true               // so the browser can include cookies
+  credentials: true               // allow cookies over CORS
 }));
 
 app.use(session({
@@ -29,13 +28,23 @@ app.use(session({
   }
 }));
 
-/***** 3. Existing Routes *****/
-// Endpoint to test the server
+/***** 3. Test pool Connection *****/
+app.get('/test-pool', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW()');
+    res.json({ serverTime: result.rows[0].now });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'pool error', error: err.message });
+  }
+});
+
+/***** 4. Basic Test Route *****/
 app.get('/', (req, res) => {
   res.send('Backend is running!');
 });
 
-// /clone endpoint
+/***** 5. Clone Endpoint *****/
 app.post('/clone', (req, res) => {
   const { repoUrl } = req.body;
   if (!repoUrl) {
@@ -58,10 +67,8 @@ app.post('/clone', (req, res) => {
     }
 
     console.log('Repo cloned successfully! STDOUT:', stdout);
-
-    // Example: you could check the folder or read the package.json, etc.
-    // For now, just confirm the folder exists
     if (fs.existsSync(clonePath)) {
+      // fs.rmSync(clonePath, { recursive: true, force: true });
       return res.status(200).json({ message: 'Clone successful!' });
     } else {
       return res.status(500).json({ message: 'Clone directory not found.' });
@@ -69,13 +76,14 @@ app.post('/clone', (req, res) => {
   });
 });
 
-/***** 4. Auth Routes *****/
-// 1. Register
+/***** 6. Auth Routes *****/
+
+// 6.1 Register
 app.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // 1. Basic checks
+    // Basic checks
     if (!username || !password) {
       return res.status(400).json({ message: 'Username and password required' });
     }
@@ -83,25 +91,30 @@ app.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Password must be >= 6 chars' });
     }
 
-    // 2. Insert or check DB
-    const existingUser = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-    if (existingUser) {
+    // Check if user already exists
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE username = $1',
+      [username]
+    );
+    if (existingUser.rows.length > 0) {
       return res.status(409).json({ message: 'Username is already taken' });
     }
 
-    // 3. Hash password, insert user
+    // Insert new user
     const hashedPassword = await bcrypt.hash(password, 10);
-    db.prepare('INSERT INTO users (username, password) VALUES (?,?)')
-      .run(username, hashedPassword);
+    await pool.query(
+      'INSERT INTO users (username, password) VALUES ($1, $2)',
+      [username, hashedPassword]
+    );
 
     return res.status(201).json({ message: 'User registered successfully' });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Server error: ' + err.message });
+    return res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-// 2. Login
+// 6.2 Login
 app.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -109,13 +122,16 @@ app.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Username and password required' });
     }
 
-    // check DB for user
-    const user = db.prepare('SELECT * FROM users WHERE username=?').get(username);
-    if (!user) {
+    // Look up user in Postgres
+    const result = await pool.query(
+      'SELECT id, password FROM users WHERE username = $1',
+      [username]
+    );
+    if (result.rows.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // compare password
+    const user = result.rows[0];
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -126,11 +142,11 @@ app.post('/login', async (req, res) => {
     return res.json({ message: 'Login successful' });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Server error: ' + err.message });
+    return res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-// 3. Logout
+// 6.3 Logout
 app.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -142,39 +158,49 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// 4. Protected Route
-app.get('/profile', (req, res) => {
+// 6.4 Protected Route: /profile
+app.get('/profile', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ message: 'Not authenticated' });
   }
-  // If logged in, fetch user info from DB
-  const stmt = db.prepare('SELECT username FROM users WHERE id = ?');
-  const user = stmt.get(req.session.userId);
-
-  if (!user) {
-    return res.status(404).json({ message: 'User not found' });
+  try {
+    const result = await pool.query(
+      'SELECT id, username FROM users WHERE id = $1',
+      [req.session.userId]
+    );
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ message: 'Profile data', user });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Server error', error: err.message });
   }
-
-  res.json({ message: 'Profile data', user });
 });
 
-app.get('/home', (req, res) => {
+// 6.5 Another Protected Route: /home
+app.get('/home', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ message: 'Not authenticated' });
   }
-
-  // If logged in, fetch user info from DB
-  const stmt = db.prepare('SELECT username FROM users WHERE id = ?');
-  const user = stmt.get(req.session.userId);
-
-  if (!user) {
-    return res.status(404).json({ message: 'User not found' });
+  try {
+    const result = await pool.query(
+      'SELECT id, username FROM users WHERE id = $1',
+      [req.session.userId]
+    );
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ message: 'Profile data', user });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Server error', error: err.message });
   }
-
-  res.json({ message: 'Profile data', user });
 });
 
-/***** 5. Start the Server *****/
+/***** 7. Start the Server *****/
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Backend server running on port ${PORT}`);

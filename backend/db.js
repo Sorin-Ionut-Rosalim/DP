@@ -1,14 +1,11 @@
-// db.js
-const Database = require('better-sqlite3');
-const db = new Database('mydb.sqlite'); // creates a file if it doesn't exist
+const { Pool } = require('pg');
 
-// Create a users table if it doesn't exist
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    password TEXT
-  )
-`);
+const pool = new Pool({
+  user: process.env.PG_USER || 'dissertation_user',
+  host: process.env.PG_HOST || 'localhost',
+  database: process.env.PG_DATABASE || 'dissertation_db',
+  password: process.env.PG_PASSWORD || 'mysecretpassword',
+  port: process.env.PG_PORT || 5432,
+});
 
-module.exports = db;
+module.exports = pool;
