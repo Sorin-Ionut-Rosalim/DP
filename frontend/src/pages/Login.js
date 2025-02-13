@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import './Login.css';
 
@@ -72,6 +72,14 @@ function Login() {
             setError('');
           }}
         />
+
+        <div className="rowBetween">
+          {/* <label>
+            <input type="checkbox" style={{ marginRight: '4px' }} />
+            Remember me
+          </label> */}
+          <Link to="/register" className="registerLink">Register</Link>
+        </div>
 
         <button className="loginButton" onClick={handleLogin}>
           LOG IN

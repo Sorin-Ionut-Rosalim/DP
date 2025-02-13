@@ -74,24 +74,29 @@ app.post('/clone', (req, res) => {
 app.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
+
+    // 1. Basic checks
     if (!username || !password) {
       return res.status(400).json({ message: 'Username and password required' });
     }
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be >= 6 chars' });
+    }
 
-    // Hash password
+    // 2. Insert or check DB
+    const existingUser = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    if (existingUser) {
+      return res.status(409).json({ message: 'Username is already taken' });
+    }
+
+    // 3. Hash password, insert user
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Insert user in DB
-    const stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
-    stmt.run(username, hashedPassword);
+    db.prepare('INSERT INTO users (username, password) VALUES (?,?)')
+      .run(username, hashedPassword);
 
     return res.status(201).json({ message: 'User registered successfully' });
   } catch (err) {
-    console.error(err.message); // Look for the real error message here
-    if (err.message.includes('UNIQUE')) {
-      // if it's a unique constraint error, respond accordingly
-      return res.status(409).json({ message: 'Username already taken' });
-    }
+    console.error(err);
     return res.status(500).json({ message: 'Server error: ' + err.message });
   }
 });
@@ -100,28 +105,28 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-
-    // Find user in DB
-    const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
-    const user = stmt.get(username);
-
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password required' });
     }
 
-    // Compare password
+    // check DB for user
+    const user = db.prepare('SELECT * FROM users WHERE username=?').get(username);
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // compare password
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Save user info in the session
+    // valid => set session
     req.session.userId = user.id;
-
-    res.json({ message: 'Logged in successfully' });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Server error' });
+    return res.json({ message: 'Login successful' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Server error: ' + err.message });
   }
 });
 
