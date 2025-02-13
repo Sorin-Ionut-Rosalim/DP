@@ -10,11 +10,10 @@ function Register() {
       const response = await fetch('/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',  // important if using sessions
+        credentials: 'include', // important for session cookies
         body: JSON.stringify({ username, password })
       });
       const data = await response.json();
-
       if (response.ok) {
         setMessage(`Success: ${data.message}`);
       } else {
@@ -27,25 +26,23 @@ function Register() {
   };
 
   return (
-    <div>
-      <h2>Register</h2>
+    <div style={{ margin: '2rem', textAlign: 'center' }}>
+      <h1>Register</h1>
       <p>{message}</p>
-      <div>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-      </div>
-      <div>
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
+      <input
+        type="text"
+        placeholder="Username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+      />
+      <br /><br />
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <br /><br />
       <button onClick={handleRegister}>Register</button>
     </div>
   );

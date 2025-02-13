@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 
 function Profile() {
-  const [profile, setProfile] = useState(null);
+  const [user, setUser] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Attempt to fetch user profile
     fetch('/profile', { credentials: 'include' })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error((await res.json()).message);
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error((await response.json()).message);
         }
-        return res.json();
+        return response.json();
       })
       .then(data => {
-        setProfile(data.user);
+        setUser(data.user); 
       })
       .catch(err => {
         console.error(err);
@@ -23,18 +22,20 @@ function Profile() {
   }, []);
 
   if (error) {
-    return <div>Not authenticated: {error}</div>;
+    return <div style={{ margin: '2rem', textAlign: 'center' }}>
+      <h1>Not Authenticated</h1>
+      <p>{error}</p>
+    </div>;
   }
 
-  if (!profile) {
-    return <div>Loading profile...</div>;
+  if (!user) {
+    return <div style={{ margin: '2rem', textAlign: 'center' }}>Loading...</div>;
   }
 
   return (
-    <div>
-      <h2>Profile</h2>
-      <p>Logged in as: {profile.username}</p>
-      {/* Additional user info */}
+    <div style={{ margin: '2rem', textAlign: 'center' }}>
+      <h1>Profile Page</h1>
+      <p>Welcome, {user.username}!</p>
     </div>
   );
 }

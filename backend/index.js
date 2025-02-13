@@ -74,26 +74,25 @@ app.post('/clone', (req, res) => {
 app.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
-
-    // Simple validation
     if (!username || !password) {
       return res.status(400).json({ message: 'Username and password required' });
     }
 
-    // Hash the password
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user into DB
+    // Insert user in DB
     const stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
     stmt.run(username, hashedPassword);
 
-    res.status(201).json({ message: 'User registered successfully' });
-  } catch (error) {
-    if (error.message.includes('UNIQUE constraint failed')) {
+    return res.status(201).json({ message: 'User registered successfully' });
+  } catch (err) {
+    console.error(err.message); // Look for the real error message here
+    if (err.message.includes('UNIQUE')) {
+      // if it's a unique constraint error, respond accordingly
       return res.status(409).json({ message: 'Username already taken' });
     }
-    console.error(error);
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + err.message });
   }
 });
 
