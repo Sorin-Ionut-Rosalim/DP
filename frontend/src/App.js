@@ -1,34 +1,48 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+
+import Home from './Home';
+import Register from './Register';
+import Login from './Login';
+import Profile from './Profile';
+import Clone from './Clone';
 
 function App() {
-  const [repoUrl, setRepoUrl] = useState('');
 
-  const handleClone = async () => {
+  // We'll put the logout button in a small nav
+  const handleLogout = async () => {
     try {
-      const response = await fetch('http://localhost:3000/clone', {
+      await fetch('/logout', { 
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repoUrl })
+        credentials: 'include'
       });
-      const result = await response.json();
-      alert(`Clone status: ${result.message}`);
+      alert('Logged out successfully!');
     } catch (error) {
-      console.error('Error cloning:', error);
+      console.error('Error logging out:', error);
     }
   };
 
   return (
-    <div style={{ margin: '2rem', textAlign: 'center'}}>
-      <h1>Clone a GitHub Repository</h1>
-      <input
-        type="text"
-        placeholder="Enter GitHub Repo URL"
-        value={repoUrl}
-        onChange={(e) => setRepoUrl(e.target.value)}
-        style={{ width: '300px', marginRight: '1rem' }}
-      />
-      <button onClick={handleClone}>Clone</button>
-    </div>
+    <Router>
+      <nav style={{ margin: '1rem', textAlign: 'center' }}>
+        <Link to="/" style={{ margin: '0 1rem' }}>Home</Link>
+        <Link to="/register" style={{ margin: '0 1rem' }}>Register</Link>
+        <Link to="/login" style={{ margin: '0 1rem' }}>Login</Link>
+        <Link to="/profile" style={{ margin: '0 1rem' }}>Profile</Link>
+        <Link to="/clone" style={{ margin: '0 1rem' }}>Clone Repo</Link>
+        <button onClick={handleLogout} style={{ margin: '0 1rem' }}>
+          Logout
+        </button>
+      </nav>
+
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/clone" element={<Clone />} />
+      </Routes>
+    </Router>
   );
 }
 
