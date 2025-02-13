@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 import './Sidebar.css';
 
 function Sidebar() {
   const navigate = useNavigate();
+  const {setIsAuth} = useContext(AuthContext);
 
   const handleLogout = async () => {
     try {
       // Call your backend to log out
       await fetch('/logout', { method: 'POST', credentials: 'include' });
+      setIsAuth(false);
       // Redirect to login page
       navigate('/');
     } catch (error) {

@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 import './Login.css';
 
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
+  const { setIsAuth } = useContext(AuthContext); // to update context
+  const [message] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async () => {
@@ -13,19 +15,20 @@ function Login() {
       const response = await fetch('/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // so cookies are sent
+        credentials: 'include',
         body: JSON.stringify({ username, password })
       });
-      const data = await response.json();
       if (response.ok) {
-        setMessage('Logged in successfully!');
+        // success -> set context state
+        setIsAuth(true);
+        // redirect to /home
         navigate('/home');
       } else {
-        setMessage(`Login Error: ${data.message}`);
+        const data = await response.json();
+        alert(`Login error: ${data.message}`);
       }
     } catch (error) {
-      console.error(error);
-      setMessage(`Network Error: Unable to login ${error}`);
+      console.error('Network error:', error);
       alert('Something went wrong. Please try again.');
     }
   };

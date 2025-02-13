@@ -5,6 +5,7 @@ import Register from './pages/Register';
 import Home from './pages/Home';
 import Clone from './pages/Clone';
 import Profile from './pages/Profile';
+import PrivateRoute from './components/PrivateRoute';
 
 function App() {
   return (
@@ -17,9 +18,12 @@ function App() {
         <Route path="/register" element={<Register />} />
 
         {/* Protected pages (assumes user is logged in) */}
-        <Route path="/home" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/clone" element={<Clone />} />
+        <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
+        <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+        <Route path="/clone" element={<PrivateRoute><Clone /></PrivateRoute>} />
+
+        {/* If no path matches, redirect to the login page */}
+        <Route path="*" element={<Login />} />
       </Routes>
     </Router>
   );
