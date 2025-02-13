@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import Sidebar from '../components/Sidebar';
+import './Home.css'
 
-function Profile() {
-  const [user, setUser] = useState(null);
+function Home() {
   const [error, setError] = useState('');
-
+  
   useEffect(() => {
     fetch('/profile', { credentials: 'include' })
       .then(async (response) => {
@@ -11,9 +12,6 @@ function Profile() {
           throw new Error((await response.json()).message);
         }
         return response.json();
-      })
-      .then(data => {
-        setUser(data.user); 
       })
       .catch(err => {
         console.error(err);
@@ -28,16 +26,17 @@ function Profile() {
     </div>;
   }
 
-  if (!user) {
-    return <div style={{ margin: '2rem', textAlign: 'center' }}>Loading...</div>;
-  }
 
   return (
-    <div style={{ margin: '2rem', textAlign: 'center' }}>
-      <h1>Profile Page</h1>
-      <p>Welcome, {user.username}!</p>
+    <div className="home-container">
+      <Sidebar />
+
+      <div className="home-content">
+        <h1>Welcome to the Home Page!</h1>
+        <p>You are now logged in.</p>
+      </div>
     </div>
   );
 }
 
-export default Profile;
+export default Home;

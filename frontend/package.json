@@ -4,6 +4,7 @@
   "private": true,
   "proxy": "http://localhost:4000",
   "dependencies": {
+    "bootstrap": "^5.3.3",
     "cra-template": "1.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -34,7 +35,10 @@
     ]
   },
   "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.2",
     "react-scripts": "^5.0.1",
+    "tailwindcss": "^4.0.6",
     "web-vitals": "^4.2.4",
     "webpack": "^5.97.1"
   }

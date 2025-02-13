@@ -1,0 +1,9 @@
+.profile-container {
+    display: flex;
+    min-height: 100vh;
+  }
+  
+  .profile-content {
+    flex: 1;
+    padding: 1rem;
+  }

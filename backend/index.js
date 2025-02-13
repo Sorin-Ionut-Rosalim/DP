@@ -137,11 +137,27 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// 4. Protected Route Example
+// 4. Protected Route
 app.get('/profile', (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ message: 'Not authenticated' });
   }
+  // If logged in, fetch user info from DB
+  const stmt = db.prepare('SELECT username FROM users WHERE id = ?');
+  const user = stmt.get(req.session.userId);
+
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  res.json({ message: 'Profile data', user });
+});
+
+app.get('/home', (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: 'Not authenticated' });
+  }
+
   // If logged in, fetch user info from DB
   const stmt = db.prepare('SELECT username FROM users WHERE id = ?');
   const user = stmt.get(req.session.userId);

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import Sidebar from "../components/Sidebar";
+import "./Clone.css";
 
 function Clone() {
   const [repoUrl, setRepoUrl] = useState("");
@@ -43,16 +45,21 @@ function Clone() {
   }
 
   return (
-    <div style={{ margin: "2rem", textAlign: "center" }}>
-      <h1>Clone a GitHub Repository</h1>
-      <input
-        type="text"
-        placeholder="Enter GitHub Repo URL"
-        value={repoUrl}
-        onChange={(e) => setRepoUrl(e.target.value)}
-        style={{ width: "300px", marginRight: "1rem" }}
-      />
-      <button onClick={handleClone}>Clone</button>
+    <div className="clone-container">
+      <Sidebar />
+      <div className="clone-content">
+        <h1>Clone a Repository</h1>
+        <input
+          type="text"
+          className="clone-input"
+          placeholder="GitHub Repo URL"
+          value={repoUrl}
+          onChange={(e) => setRepoUrl(e.target.value)}
+        />
+        <button className="clone-button" onClick={handleClone}>
+          Clone
+        </button>
+      </div>
     </div>
   );
 }
