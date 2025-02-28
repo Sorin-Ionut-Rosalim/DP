@@ -1,9 +1,97 @@
+/* Layout settings */
 .profile-container {
-    display: flex;
-    min-height: 100vh;
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+  background: linear-gradient(to bottom, #f0f4f8, #d9e2ec);
+}
+
+/* Profile content area */
+.profile-content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+/* Profile card for better layout */
+.profile-card {
+  background: #fff;
+  padding: 2.5rem;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  width: 400px;
+  max-width: 90%;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Profile title */
+.profile-title {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #003366;
+  margin-bottom: 1.5rem;
+}
+
+/* Profile information */
+.profile-info p {
+  font-size: 1rem;
+  color: #555;
+  margin: 0.5rem 0;
+}
+
+/* Loading & Error Message Styling */
+.status-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f9f9f9;
+  color: #333;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* Error Styling */
+.error-title {
+  font-size: 2rem;
+  color: #d9534f;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.error-message {
+  font-size: 1.2rem;
+  color: #555;
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
   }
-  
-  .profile-content {
-    flex: 1;
-    padding: 1rem;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .profile-card {
+    width: 95%;
+    padding: 2rem;
+  }
+
+  .profile-title {
+    font-size: 1.5rem;
+  }
+
+  .profile-info p {
+    font-size: 0.95rem;
+  }
+}

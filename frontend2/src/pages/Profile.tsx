@@ -15,7 +15,7 @@ const Profile: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await fetch('/profile', { credentials: 'include' });
+        const response = await fetch('/api/profile', { credentials: 'include' });
 
         if (!response.ok) {
           const errorData: { message?: string } = await response.json();
@@ -40,25 +40,29 @@ const Profile: React.FC = () => {
 
   if (error) {
     return (
-      <div style={{ margin: '2rem', textAlign: 'center' }}>
-        <h1>Not Authenticated</h1>
-        <p>{error}</p>
+      <div className="status-container">
+        <h1 className="error-title">Not Authenticated</h1>
+        <p className="error-message">{error}</p>
       </div>
     );
   }
 
   if (!user) {
-    return <div style={{ margin: '2rem', textAlign: 'center' }}>Loading...</div>;
+    return <div className="status-container"><h1>Loading...</h1></div>;
   }
 
   return (
     <div className="profile-container">
       <Sidebar />
       <div className="profile-content">
-        <h1>Profile Page</h1>
-        <p><strong>ID:</strong> {user.id}</p>
-        <p><strong>Username:</strong> {user.username}</p>
-        <p><strong>Email:</strong> {user.email}</p>
+        <div className="profile-card">
+          <h1 className="profile-title">Profile Page</h1>
+          <div className="profile-info">
+            <p><strong>ID:</strong> {user.id}</p>
+            <p><strong>Username:</strong> {user.username}</p>
+            <p><strong>Email:</strong> {user.email}</p>
+          </div>
+        </div>
       </div>
     </div>
   );

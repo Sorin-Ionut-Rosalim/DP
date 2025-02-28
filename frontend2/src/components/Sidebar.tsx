@@ -15,7 +15,7 @@ const Sidebar: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await fetch('/logout', { method: 'POST', credentials: 'include' });
+      await fetch('/api/logout', { method: 'POST', credentials: 'include' });
       setIsAuth(false);
       navigate('/');
     } catch (error) {
