@@ -1,0 +1,101 @@
+/* Ensures full height and centers the register form */
+.register-pageWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* Full viewport height */
+  width: 100vw; /* Full viewport width */
+  background: linear-gradient(135deg, #e3f2fd, #f0f2f5); /* Soft gradient */
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* White card container with soft shadow */
+.register-card {
+  width: 400px; /* Increased width for better spacing */
+  max-width: 90%; /* Ensures responsiveness */
+  padding: 2rem;
+  background-color: #fff;
+  border-radius: 12px; /* Smoother rounded edges */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Softer shadow */
+  text-align: center;
+  animation: fadeIn 0.5s ease-in-out; /* Smooth fade-in effect */
+}
+
+/* Title (REGISTER) */
+.register-title {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #003366;
+  margin-bottom: 1.5rem;
+}
+
+/* Input fields */
+.register-inputField {
+  width: 94%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border-radius: 6px;
+  border: 1px solid #bbb;
+  margin-bottom: 1rem;
+  transition: border-color 0.3s ease-in-out;
+  background: #fff;
+  color: #333;
+  text-align: left; /* Ensures text starts from the left */
+}
+
+.register-inputField:focus {
+  outline: none;
+  border-color: #003366;
+  box-shadow: 0 0 5px rgba(0, 51, 102, 0.3);
+}
+
+/* Primary Register Button */
+.register-button {
+  width: 100%;
+  padding: 0.8rem;
+  font-size: 1rem;
+  background-color: #003366;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease-in-out;
+}
+
+.register-button:hover {
+  background-color: #0055cc;
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .register-card {
+    width: 90%;
+    padding: 1.5rem;
+  }
+
+  .register-title {
+    font-size: 1.3rem;
+  }
+
+  .register-inputField {
+    font-size: 0.95rem;
+  }
+
+  .register-button {
+    font-size: 0.95rem;
+  }
+}

@@ -1,0 +1,111 @@
+/* Ensures the container fills the entire viewport */
+.home-container {
+  display: flex;
+  min-height: 100vh; /* Ensures it takes the full height */
+  width: 100vw; /* Ensures full width */
+  background-color: #f9f9f9; /* Light background */
+}
+
+/* Content Area */
+.home-content {
+  flex: 1; /* Allows content to take the remaining space */
+  padding: 3rem;
+  box-sizing: border-box;
+  margin-left: 250px; /* Prevents overlap with the sidebar */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Centers content vertically */
+  align-items: center; /* Centers content horizontally */
+  text-align: center;
+  background: #fff;
+  color: #333;
+  height: 100vh; /* Fills the screen */
+}
+
+/* Heading */
+.home-content h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #222;
+  margin-bottom: 1rem;
+}
+
+/* Text */
+.home-content p {
+  font-size: 1.2rem;
+  color: #555;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sidebar {
+      width: 200px;
+      padding: 1rem;
+  }
+
+  .home-content {
+      margin-left: 220px;
+      padding: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+      width: 100%;
+      height: auto;
+      position: relative;
+  }
+
+  .home-content {
+      margin-left: 0;
+      padding: 1.5rem;
+  }
+}
+
+
+/* General Status Container */
+.status-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f9f9f9;
+  color: #333;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* Loading Spinner Animation */
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 6px solid #ddd;
+  border-top: 6px solid #003366;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  from {
+      transform: rotate(0deg);
+  }
+  to {
+      transform: rotate(360deg);
+  }
+}
+
+/* Error Message */
+.error-title {
+  font-size: 2rem;
+  color: #d9534f;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.error-message {
+  font-size: 1.2rem;
+  color: #555;
+}
+

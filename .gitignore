@@ -25,3 +25,51 @@ backend/repo-*
 sonartoken.txt
 apptutorial.md
 
+# 📂 Node Modules
+node_modules/
+
+# 📂 Build and Cache Files (Generated Files)
+dist/
+.vite/
+.vscode/
+.idea/
+*.log
+
+# ⚙️ TypeScript Build Artifacts
+*.tsbuildinfo
+
+# 🏗️ Environment Files (Secrets)
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+vite-env.d.ts
+
+# ⚡ Dependency Locks (Only keep one of `package-lock.json` or `yarn.lock`)
+yarn.lock
+pnpm-lock.yaml
+
+# 🏗️ Ignore TypeScript Cache & Editor Settings
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# 📂 Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ⚙️ Compiled Output (JS files from TS)
+*.js
+*.map
+
+# 🔥 Ignore Git Conflicts
+*.orig
+
+# 🚀 Ignore Mac & Windows System Files
+.DS_Store
+Thumbs.db
+

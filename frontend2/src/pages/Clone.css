@@ -1,0 +1,26 @@
+.clone-container {
+    display: flex;
+    min-height: 100vh;
+  }
+  
+  .clone-content {
+    flex: 1;
+    padding: 1rem;
+  }
+  
+  .clone-input {
+    display: block;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    width: 300px;
+    max-width: 100%;
+  }
+  
+  .clone-button {
+    padding: 0.5rem 1rem;
+    background-color: #003366;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }

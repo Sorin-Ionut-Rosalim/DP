@@ -14,8 +14,8 @@ app.use(express.json());
 
 // CORS and Session config
 app.use(cors({
-  origin: 'http://localhost:3000', // React app address
-  credentials: true               // allow cookies over CORS
+  origin: 'http://localhost:5173',
+  credentials: true
 }));
 
 app.use(session({

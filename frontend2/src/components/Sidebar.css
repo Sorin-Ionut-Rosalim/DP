@@ -1,0 +1,124 @@
+/* Sidebar Styling */
+.sidebar {
+  width: 250px; /* Increase width for better readability */
+  background-color: #f4f4f4; /* Slightly better shade */
+  padding: 1.5rem;
+  box-sizing: border-box;
+  min-height: 100vh; /* Ensures sidebar spans full vertical height */
+  position: fixed; /* Keeps sidebar fixed */
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar Title */
+.sidebar-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+/* Sidebar List */
+.sidebar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-list li {
+  margin: 0.75rem 0;
+}
+
+.sidebar-list li a {
+  text-decoration: none;
+  color: #333;
+  font-size: 1rem;
+  font-weight: 500;
+  display: block;
+  padding: 0.5rem;
+  transition: background 0.3s, color 0.3s;
+}
+
+.sidebar-list li a:hover {
+  background: #ddd;
+  border-radius: 5px;
+  padding-left: 1rem;
+}
+
+/* Logout Button */
+.sidebar-list li button {
+  border: none;
+  background: none;
+  color: #ff0000;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  padding: 0.5rem;
+  transition: color 0.3s, background 0.3s;
+}
+
+.sidebar-list li button:hover {
+  color: #fff;
+  background: #ff0000;
+  border-radius: 5px;
+}
+
+/* Main Content Area */
+.home-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.home-content {
+  margin-left: 270px; /* Matches sidebar width + padding */
+  padding: 3rem;
+  background: #fff; /* Fixes the dark theme */
+  color: #333;
+  flex: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Heading */
+.home-content h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #222;
+}
+
+/* Text */
+.home-content p {
+  font-size: 1.2rem;
+  color: #444;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sidebar {
+      width: 200px;
+      padding: 1rem;
+  }
+
+  .home-content {
+      margin-left: 220px;
+      padding: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+      width: 100%;
+      height: auto;
+      position: relative;
+  }
+
+  .home-content {
+      margin-left: 0;
+      padding: 1.5rem;
+  }
+}
