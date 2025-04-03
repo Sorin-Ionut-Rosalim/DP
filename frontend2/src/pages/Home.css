@@ -1,69 +1,116 @@
-/* Ensures the container fills the entire viewport */
+/* Base Container Styles (unchanged) */
 .home-container {
   display: flex;
-  min-height: 100vh; /* Ensures it takes the full height */
-  width: 100vw; /* Ensures full width */
-  background-color: #f9f9f9; /* Light background */
+  min-height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #e3f2fd, #f0f2f5);
 }
 
-/* Content Area */
+/* Enhanced Content Area */
 .home-content {
-  flex: 1; /* Allows content to take the remaining space */
+  flex: 1;
   padding: 3rem;
   box-sizing: border-box;
-  margin-left: 250px; /* Prevents overlap with the sidebar */
+  margin-left: 250px;
   display: flex;
   flex-direction: column;
-  justify-content: center; /* Centers content vertically */
-  align-items: center; /* Centers content horizontally */
-  text-align: center;
-  background: #fff;
+  align-items: center;
   color: #333;
-  height: 100vh; /* Fills the screen */
+  min-height: 100vh;
 }
 
-/* Heading */
-.home-content h1 {
-  font-size: 2.5rem;
-  font-weight: bold;
+/* Welcome Card */
+.welcome-card {
+  width: 100%;
+  max-width: 800px;
+  background: white;
+  border-radius: 12px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.welcome-title {
+  font-size: 2.2rem;
+  font-weight: 600;
   color: #222;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
 }
 
-/* Text */
-.home-content p {
+.welcome-subtitle {
+  font-size: 1.1rem;
+  color: #666;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* User Info Grid */
+.user-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.info-item {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border-left: 4px solid #3b82f6;
+}
+
+.info-label {
+  display: block;
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  display: block;
   font-size: 1.2rem;
-  color: #555;
+  color: #1e293b;
+  font-weight: 600;
 }
 
-/* Responsive Design */
+/* Keep existing responsive styles */
 @media (max-width: 768px) {
   .sidebar {
-      width: 200px;
-      padding: 1rem;
+    width: 200px;
+    padding: 1rem;
   }
 
   .home-content {
-      margin-left: 220px;
-      padding: 2rem;
+    margin-left: 220px;
+    padding: 2rem;
+  }
+  
+  .welcome-card {
+    padding: 1.5rem;
   }
 }
 
 @media (max-width: 480px) {
   .sidebar {
-      width: 100%;
-      height: auto;
-      position: relative;
+    width: 100%;
+    height: auto;
+    position: relative;
   }
 
   .home-content {
-      margin-left: 0;
-      padding: 1.5rem;
+    margin-left: 0;
+    padding: 1.5rem;
+  }
+  
+  .user-info-grid {
+    grid-template-columns: 1fr;
   }
 }
 
-
-/* General Status Container */
+/* Keep existing status container styles */
 .status-container {
   display: flex;
   flex-direction: column;
@@ -76,7 +123,6 @@
   padding: 2rem;
 }
 
-/* Loading Spinner Animation */
 .loading-spinner {
   width: 50px;
   height: 50px;
@@ -88,15 +134,10 @@
 }
 
 @keyframes spin {
-  from {
-      transform: rotate(0deg);
-  }
-  to {
-      transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-/* Error Message */
 .error-title {
   font-size: 2rem;
   color: #d9534f;
@@ -108,4 +149,3 @@
   font-size: 1.2rem;
   color: #555;
 }
-

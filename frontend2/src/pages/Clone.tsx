@@ -42,27 +42,39 @@ const Clone: React.FC = () => {
   
   const handleClone = async () => {
     if (!repoUrl.trim()) {
-      setStatusMessage("Please enter a valid repository URL.");
-      return;
+        setStatusMessage("Please enter a valid repository URL.");
+        return;
     }
 
     try {
-      const response = await fetch("/api/clone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ repoUrl }),
-      });
+        const response = await fetch("http://localhost:4000/clone", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ repoUrl }),
+        });
 
-      const result = await response.json();
-      if (response.ok) {
-        setStatusMessage(`✅ Clone successful: ${result.message}`);
-      } else {
-        setStatusMessage(`❌ Error: ${result.message}`);
-      }
+        // First get the response text
+        const responseText = await response.text();
+        
+        // Try to parse as JSON
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            throw new Error(responseText || "Invalid server response");
+        }
+
+        if (!response.ok) {
+            throw new Error(result.error || result.message || "Clone failed");
+        }
+
+        setStatusMessage(`✅ ${result.message}`);
     } catch (error) {
-      console.error("Error cloning:", error);
-      setStatusMessage("Something went wrong. Please try again.");
+        console.error("Clone error:", error);
+        setStatusMessage(
+            `❌ ${error instanceof Error ? error.message : "Something went wrong"}`
+        );
     }
   };
 

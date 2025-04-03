@@ -1,41 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Sidebar from '../components/Sidebar';
 import './Home.css';
-
-interface ErrorResponse {
-  message?: string;
-}
+import { useProfileQuery } from '../hooks/useProfileQuery';
 
 const Home: React.FC = () => {
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { data: user, isLoading, error } = useProfileQuery();
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await fetch('/profile', { credentials: 'include' });
-
-        if (!response.ok) {
-          const errorData: ErrorResponse = await response.json();
-          throw new Error(errorData.message || 'Failed to fetch profile.');
-        }
-      } catch (err) {
-        if (err instanceof Error) {
-          console.error(err);
-          setError(err.message);
-        } else {
-          console.error("An unknown error occurred");
-          setError("An unknown error occurred");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="status-container">
         <div className="loading-spinner"></div>
@@ -43,27 +14,32 @@ const Home: React.FC = () => {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="status-container">
-        <h1 className="error-title">Not Authenticated</h1>
-        <p className="error-message">{error}</p>
+        <h1 className="error-title">
+          {error.message.includes('401') ? 'Not Authenticated' : 'Error'}
+        </h1>
+        <p className="error-message">
+          {error.message.includes('401') 
+            ? 'Please log in to access this page.'
+            : error.message}
+        </p>
       </div>
     );
   }
-  
+
   return (
     <div className="home-container">
       <Sidebar />
-  
       <div className="home-content">
-        <h1>Welcome to the Home Page!</h1>
-        <p>You are now logged in.</p>
+        <div className="welcome-card">
+          <h1 className="welcome-title">Welcome back, {user?.username}!</h1>
+        </div>
       </div>
     </div>
   );
-  
 };
 
 export default Home;

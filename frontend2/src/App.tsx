@@ -1,28 +1,30 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
 import Clone from './pages/Clone';
 import Profile from './pages/Profile';
 import PrivateRoute from './components/PrivateRoute';
+import NotFound from './pages/NotFound';
 
 const App: React.FC = () => {
   return (
     <Router>
       <Routes>
-        {/* Default route => Login page */}
-        <Route path="/" element={<Login />} />
-
-        {/* Registration route */}
+        {/* Redirect root to login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected pages (assumes user is logged in) */}
-        <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
-        <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
-        <Route path="/clone" element={<PrivateRoute><Clone /></PrivateRoute>} />
+        {/* Protected routes */}
+        <Route path="/home" element={ <PrivateRoute> <Home /> </PrivateRoute> }/>
+        <Route path="/profile" element={ <PrivateRoute> <Profile />  </PrivateRoute> } />
+        <Route path="/clone" element={ <PrivateRoute> <Clone /> </PrivateRoute> } />
 
-        {/* If no path matches, redirect to the login page */}
-        <Route path="*" element={<Login />} />
+        {/* 404 handling */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

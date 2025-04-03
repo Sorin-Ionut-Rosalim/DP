@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import './index.css';
@@ -10,11 +11,14 @@ if (!rootElement) {
   throw new Error("Root element not found. Make sure your HTML has a <div id='root'></div>.");
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
+const queryClient = new QueryClient();
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 );

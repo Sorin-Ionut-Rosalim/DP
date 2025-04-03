@@ -1,41 +1,71 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useContext} from 'react';
 
 interface AuthContextType {
-  isAuth: boolean;
-  setIsAuth: React.Dispatch<React.SetStateAction<boolean>>;
-  loading: boolean;
+  isAuthenticated: boolean;
+  setIsAuthenticated:  (value: boolean) => void;
+  isLoading: boolean;
+  checkSession: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuth, setIsAuth] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const response = await fetch('/profile', { credentials: 'include' });
+  const checkSession = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/verify', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-        if (response.ok) {
-          setIsAuth(true);
-        } else {
-          setIsAuth(false);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        setIsAuth(false);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    };
 
-    checkSession();
+      const data = await response.json();
+      setIsAuthenticated(data.isAuthenticated ?? false);
+    } catch (error) {
+      console.error('Session verification failed:', error);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
   return (
-    <AuthContext.Provider value={{ isAuth, setIsAuth, loading }}>
+    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, isLoading, checkSession, logout }}>
       {children}
     </AuthContext.Provider>
   );
+};
+
+// Custom hook for easier consumption
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

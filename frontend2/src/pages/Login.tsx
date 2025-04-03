@@ -1,20 +1,24 @@
 import React, { useState, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import './Login.css';
+import './Auth.css';
+import { useLoginMutation } from '../hooks/useLoginMutation';
 
-const Login: React.FC = () => {
+export const useAuth = () => {
   const authContext = useContext(AuthContext);
 
   if (!authContext) {
     throw new Error("AuthContext must be used within an AuthProvider");
   }
 
-  const { setIsAuth } = authContext;
+  return authContext;
+}
+
+const Login: React.FC = () => {
+
+  const {mutate: loginMutation} = useLoginMutation();
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const handleLogin = async () => {
     if (!username.trim()) {
@@ -26,43 +30,20 @@ const Login: React.FC = () => {
       return;
     }
 
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (response.ok) {
-        setIsAuth(true);
-        navigate('/home');
-      } else {
-        const data: { message: string } = await response.json();
-        setError(data.message || 'Login failed.');
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error('Network error:', error);
-        setError('Something went wrong. Please try again.');
-      } else {
-        console.error("An unknown error occurred.");
-        setError("An unknown error occurred.");
-      }
-    }
+    loginMutation({username, password});
   };
 
   return (
-    <div className="pageWrapper">
-      <div className="loginCard">
-        <h2 className="loginTitle">User Login</h2>
+    <div className="auth-pageWrapper">
+      <div className="auth-card">
+        <h2 className="auth-title">LOGIN</h2>
 
-        {error && <p className="errorMessage">{error}</p>}
+        {error && <p className="auth-errorMessage">{error}</p>}
 
         <input
           type="text"
           placeholder="Username"
-          className="inputField"
+          className="auth-inputField"
           value={username}
           onChange={(e) => {
             setUsername(e.target.value);
@@ -73,7 +54,7 @@ const Login: React.FC = () => {
         <input
           type="password"
           placeholder="Password"
-          className="inputField"
+          className="auth-inputField"
           value={password}
           onChange={(e) => {
             setPassword(e.target.value);
@@ -81,15 +62,15 @@ const Login: React.FC = () => {
           }}
         />
 
-        <div className="rowBetween">
-          <Link to="/register" className="registerLink">
-            Register
-          </Link>
-        </div>
-
-        <button className="loginButton" onClick={handleLogin}>
-          Log In
+        <button className="auth-button" onClick={handleLogin}>
+          Login
         </button>
+
+        <div style={{ marginTop: '1rem' }}>
+          <a href="/register" className="auth-link">
+            Don't have an account? Register
+          </a>
+        </div>
       </div>
     </div>
   );

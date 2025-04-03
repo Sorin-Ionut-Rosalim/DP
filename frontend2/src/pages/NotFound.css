@@ -1,0 +1,41 @@
+/* Reset body margin first */
+body {
+    margin: 0;
+  }
+  
+  /* 404 Container */
+  .not-found {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh; /* Changed from height to min-height */
+    width: 100vw;
+    text-align: center;
+    padding: 2rem;
+    box-sizing: border-box; /* Include padding in dimensions */
+    background-color: #f8fafc;
+  }
+  
+  /* Keep your existing styles for text/link */
+  .not-found h1 {
+    font-size: 2rem;
+    color: #1e293b;
+    margin-bottom: 1rem;
+  }
+  
+  .not-found p {
+    font-size: 1.1rem;
+    color: #64748b;
+    margin-bottom: 1.5rem;
+  }
+  
+  .not-found a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  
+  .not-found a:hover {
+    text-decoration: underline;
+  }
