@@ -1,15 +1,15 @@
-/* Main Container - fixed overflow issue */
+/* Main Container */
 .clone-container {
   display: flex;
   min-height: 100vh;
-  width: 100vw; /* Changed from 100vh to 100vw */
+  width: 100vw;
   background: linear-gradient(to bottom, #f0f4f8, #d9e2ec);
-  overflow-x: hidden; /* Prevent horizontal overflow */
 }
 
+/* Sidebar occupies fixed width, content adjusts accordingly */
 .clone-content {
   flex: 1;
-  padding: 2rem;
+  padding: 3rem;
   box-sizing: border-box;
   margin-left: 250px;
   display: flex;
@@ -17,37 +17,27 @@
   align-items: center;
   color: #333;
   min-height: 100vh;
-  max-width: 100%; /* Ensure content doesn't overflow */
 }
 
-.clone-card {
-  width: 100%;
-  max-width: 600px; /* Reduced from 800px for better proportions */
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  margin-top: 1rem;
-}
-
-/* Rest of your existing styles remain the same */
+/* Title */
 .clone-title {
   font-size: 1.8rem;
-  font-weight: 600;
-  color: #1a365d;
+  font-weight: bold;
+  color: #003366;
   margin-bottom: 1.5rem;
-  text-align: center;
 }
 
-.clone-form {
+/* Input Container */
+.clone-input-container {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
   width: 100%;
 }
 
 .clone-input {
-  width: 100%;
+  flex: 1;
+  max-width: 600px;
   padding: 0.75rem 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
@@ -61,8 +51,11 @@
   box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
 }
 
+/* Button */
 .clone-button {
-  padding: 0.75rem;
+  display: block;
+  margin: 0 auto 1rem auto;
+  padding: 0.75rem 1.5rem;
   background-color: #3182ce;
   color: white;
   border: none;
@@ -82,11 +75,13 @@
   cursor: not-allowed;
 }
 
+/* Status Message */
 .clone-status {
-  margin-top: 1.5rem;
+  font-size: 1rem;
+  text-align: center;
   padding: 0.75rem;
   border-radius: 6px;
-  text-align: center;
+  width: 100%;
 }
 
 .clone-status.success {
@@ -99,28 +94,18 @@
   color: #f56565;
 }
 
+/* Responsive Breakpoints */
 @media (max-width: 768px) {
   .clone-content {
-    margin-left: 220px;
-    padding: 1.5rem;
-  }
-  
-  .clone-card {
     padding: 1.5rem;
   }
 }
 
 @media (max-width: 480px) {
   .clone-content {
-    margin-left: 0;
     padding: 1rem;
   }
-  
-  .clone-card {
-    padding: 1.25rem;
-    border-radius: 8px;
-  }
-  
+
   .clone-title {
     font-size: 1.5rem;
   }
