@@ -43,6 +43,11 @@ func main() {
 		log.Fatalf("Unable to connect to database: %v", err)
 	}
 	defer dbPool.Close()
+
+	err = dbPool.Ping(context.Background())
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v", err)
+	}
 	fmt.Println("Connected to the database!")
 
 	// 4. Create a Gin router
@@ -74,18 +79,18 @@ func main() {
 	})
 
 	// Register user
-	r.POST("/register", registerHandler)
+	r.POST("/api/register", registerHandler)
 
 	// Login user
-	r.POST("/login", loginHandler)
+	r.POST("/api/login", loginHandler)
 
 	// Logout user
-	r.POST("/logout", logoutHandler)
+	r.POST("/api/logout", logoutHandler)
 
 	// Protected profile route
-	r.GET("/profile", profileHandler)
+	r.GET("/api/profile", profileHandler)
 
-	r.POST("/clone", cloneHandler)
+	r.POST("/api/clone", cloneHandler)
 
 	// 8. Start server
 	port := os.Getenv("PORT")
@@ -132,12 +137,14 @@ func registerHandler(c *gin.Context) {
 	hashBytes, hashErr := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 	if hashErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password."})
+		fmt.Println(hashErr.Error())
 		return
 	}
 
 	_, insertErr := dbPool.Exec(ctx, "INSERT INTO users (username, password) VALUES ($1, $2)", req.Username, string(hashBytes))
 	if insertErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error inserting user into the database."})
+		fmt.Println(insertErr.Error())
 		return
 	}
 
@@ -160,15 +167,20 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 
+	start := time.Now()
+
 	ctx := context.Background()
 	var userID int
 	var hashedPassword string
 	err := dbPool.QueryRow(ctx, "SELECT id, password FROM users WHERE username=$1", req.Username).Scan(&userID, &hashedPassword)
+	elapsed := time.Since(start)
+	log.Printf("Binomial took %s", elapsed)
 	if err != nil {
 		// user not found or DB error
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password."})
 		return
 	}
+	log.Printf("AICI!")
 
 	if bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(req.Password)) != nil {
 		// incorrect password

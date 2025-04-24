@@ -15,7 +15,7 @@ const registerResponseSchema = z.object({
 
 // 2) The actual fetch call
 async function registerUser({ username, password }: RegisterVariables) {
-    const response = await fetch('/api/register', {
+    const response = await fetch('http://localhost:4000/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

@@ -16,7 +16,7 @@ const userResponseSchema = z.object({
 export type User = z.infer<typeof userResponseSchema>;
 
 async function fetchProfile(): Promise<User> {
-  const response = await fetch('/api/profile', {
+  const response = await fetch('http://localhost:4000/api/profile', {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',

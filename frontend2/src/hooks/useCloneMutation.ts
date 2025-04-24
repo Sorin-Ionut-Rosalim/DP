@@ -13,7 +13,7 @@ interface CloneResponse {
 export const useCloneMutation = () => {
   return useMutation<CloneResponse, Error, CloneRequest>({
     mutationFn: async ({ repoUrl }) => {
-      const response = await fetch('/clone', {
+      const response = await fetch('http://localhost:4000/clone', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

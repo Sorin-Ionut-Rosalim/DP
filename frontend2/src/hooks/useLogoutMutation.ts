@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
 const logoutUser = async () => {
-  const response = await fetch('/api/logout', {
+  const response = await fetch('http://localhost:4000/api/logout', {
     method: 'POST',
     credentials: 'include',
   });

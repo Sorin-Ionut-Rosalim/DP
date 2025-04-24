@@ -15,7 +15,7 @@ const loginResponseSchema = z.object({
 // type LoginResponse = z.infer<typeof loginResponseSchema>
 
 async function loginUser({ username, password }: LoginVariables) {
-    const response = await fetch('/api/login', {
+    const response = await fetch('http://localhost:4000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
