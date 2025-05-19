@@ -2,11 +2,13 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import { useCloneMutation } from "../hooks/useCloneMutation";
 import "./Clone.css";
+import DetektTable from "../components/DetektTable";
 
 const Clone: React.FC = () => {
   const [repoUrl, setRepoUrl] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [detektXML, setDetektXML] = useState<string | null>(null);
 
   // Destructure the mutation result
   const { mutateAsync, status } = useCloneMutation();
@@ -40,10 +42,12 @@ const Clone: React.FC = () => {
       setStatusMessage("Please enter a valid repository URL.");
       return;
     }
-
+    setStatusMessage(null);
+    setDetektXML(null);
     try {
       const { message } = await mutateAsync({ repoUrl });
-      setStatusMessage(`✅ ${message}`);
+      setStatusMessage("✅ Scan complete!");
+      setDetektXML(message);
     } catch (err) {
       setStatusMessage(`❌ ${err instanceof Error ? err.message : "Clone failed"}`);
     }
@@ -64,6 +68,7 @@ const Clone: React.FC = () => {
             onChange={(e) => {
               setRepoUrl(e.target.value);
               setStatusMessage(null);
+              setDetektXML(null);
             }}
           />
         </div>
@@ -71,11 +76,13 @@ const Clone: React.FC = () => {
         <button
           className="clone-button"
           onClick={handleClone}
+          disabled={status === "pending"}
         >
-        Clone Repository
+          {status === "pending" ? "Scanning..." : "Clone Repository"}
         </button>
-
+        {status === "pending" && <div className="spinner">⏳ Scanning, please wait...</div>}
         {statusMessage && <p className="clone-status">{statusMessage}</p>}
+        {detektXML && <DetektTable xml={detektXML} />}
       </div>
     </div>
   );

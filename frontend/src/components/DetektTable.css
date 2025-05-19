@@ -1,0 +1,16 @@
+.detekt-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 2rem;
+}
+.detekt-table th, .detekt-table td {
+  border: 1px solid #ddd;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.95rem;
+}
+.detekt-table th {
+  background: #002942;
+  color: #fff;
+  font-weight: bold;
+}
+.detekt-table tr:nth-child(even) { background: #f8fafc; }

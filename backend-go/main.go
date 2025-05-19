@@ -6,11 +6,13 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/client"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -90,6 +92,7 @@ func main() {
 	// Protected profile route
 	r.GET("/api/profile", profileHandler)
 
+	// Scan endpoint using Docker!
 	r.POST("/api/clone", cloneHandler)
 
 	// 8. Start server
@@ -237,59 +240,85 @@ func profileHandler(c *gin.Context) {
 
 }
 
+// --- THIS IS THE DOCKER-POWERED SCAN ENDPOINT ---
 func cloneHandler(c *gin.Context) {
 	var req struct {
 		RepoURL string `json:"repoUrl" binding:"required"`
 	}
 
-	// Set default JSON response headers
-	c.Header("Content-Type", "application/json")
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request format",
-		})
+	if err := c.ShouldBindJSON(&req); err != nil || req.RepoURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request format or missing repoUrl"})
 		return
 	}
 
 	// Validate GitHub URL
 	if !strings.HasPrefix(req.RepoURL, "https://github.com/") {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Only GitHub repository URLs are supported",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Only GitHub repository URLs are supported"})
 		return
 	}
 
-	// Execute git clone
-	repoName := filepath.Base(req.RepoURL)
-	repoName = strings.TrimSuffix(repoName, ".git")
-	cloneDir := filepath.Join("repos", repoName)
-
-	if err := os.MkdirAll("repos", 0755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to create directory",
-		})
-		return
-	}
-
-	cmd := exec.Command("git", "clone", req.RepoURL, cloneDir)
-	output, err := cmd.CombinedOutput()
-
+	// Run the analysis in a Docker container
+	detektXML, err := runAnalysisContainer(req.RepoURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Clone failed",
-			"details": string(output),
-		})
+		log.Println("Scan error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Scan failed", "details": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Repository cloned successfully",
-		"path":    cloneDir,
-	})
+	// Respond with the XML as string (optionally: parse and return a summary)
+	c.Data(http.StatusOK, "application/xml", []byte(detektXML))
+}
+
+// --- Function to run the analysis container and fetch the detekt results ---
+func runAnalysisContainer(repoURL string) (string, error) {
+	tempDir, err := os.MkdirTemp("", "scan-")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir) // Clean up after scan
+
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		return "", fmt.Errorf("docker client error: %w", err)
+	}
+
+	resp, err := cli.ContainerCreate(ctx, &container.Config{
+		Image: "repo-analyzer:latest",
+		Env:   []string{fmt.Sprintf("REPO_URL=%s", repoURL)},
+		Tty:   false,
+	}, &container.HostConfig{
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: tempDir,
+				Target: "/data",
+			},
+		},
+		AutoRemove: true,
+	}, nil, nil, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to create container: %w", err)
+	}
+
+	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		return "", fmt.Errorf("failed to start container: %w", err)
+	}
+
+	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return "", fmt.Errorf("container wait error: %w", err)
+		}
+	case <-statusCh:
+	}
+
+	reportPath := filepath.Join(tempDir, "detekt-report.xml")
+	reportBytes, err := os.ReadFile(reportPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read report: %w", err)
+	}
+
+	return string(reportBytes), nil
 }
