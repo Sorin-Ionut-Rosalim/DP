@@ -95,6 +95,12 @@ func main() {
 	// Scan endpoint using Docker!
 	r.POST("/api/clone", cloneHandler)
 
+	r.GET("/api/projects", listProjectsHandler)
+
+	r.GET("/api/project/:projectId/scans", listProjectScansHandler)
+
+	r.GET("/api/scan/:scanId", getScanHandler)
+
 	// 8. Start server
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -245,19 +251,55 @@ func cloneHandler(c *gin.Context) {
 	var req struct {
 		RepoURL string `json:"repoUrl" binding:"required"`
 	}
-
+	c.Header("Content-Type", "application/json")
 	if err := c.ShouldBindJSON(&req); err != nil || req.RepoURL == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request format or missing repoUrl"})
 		return
 	}
-
-	// Validate GitHub URL
+	// Validate GitHub URL (simple check)
 	if !strings.HasPrefix(req.RepoURL, "https://github.com/") {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Only GitHub repository URLs are supported"})
 		return
 	}
 
-	// Run the analysis in a Docker container
+	// Get user ID from session
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	log.Printf("Session userID: %v", userID)
+	if userID == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
+		return
+	}
+
+	// --- 1. Get or insert project for user+repo ---
+	ctx := context.Background()
+	var projectID int
+	var projectName string
+	// Extract a name from the repo URL
+	parts := strings.Split(strings.TrimSuffix(req.RepoURL, ".git"), "/")
+	if len(parts) > 0 {
+		projectName = parts[len(parts)-1]
+	} else {
+		projectName = req.RepoURL
+	}
+
+	// Try to find project
+	err := dbPool.QueryRow(ctx, "SELECT id FROM projects WHERE user_id = $1 AND url = $2", userID, req.RepoURL).Scan(&projectID)
+	if err != nil {
+		// Not found, so insert
+		err2 := dbPool.QueryRow(ctx, `
+            INSERT INTO projects (user_id, name, url, submitted_at)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+        `, userID, projectName, req.RepoURL, time.Now()).Scan(&projectID)
+		if err2 != nil {
+			log.Printf("Failed to insert project: %v", err2)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save project"})
+			return
+		}
+	}
+
+	// --- 2. Run the Detekt scan in Docker as before ---
 	detektXML, err := runAnalysisContainer(req.RepoURL)
 	if err != nil {
 		log.Println("Scan error:", err)
@@ -265,7 +307,17 @@ func cloneHandler(c *gin.Context) {
 		return
 	}
 
-	// Respond with the XML as string (optionally: parse and return a summary)
+	// --- 3. Insert Detekt result ---
+	_, err = dbPool.Exec(ctx, `
+        INSERT INTO detekt_results (project_id, detekt_xml, detected_at)
+        VALUES ($1, $2, $3)
+    `, projectID, detektXML, time.Now())
+	if err != nil {
+		log.Printf("Failed to insert detekt result: %v", err)
+		// (optional: return error, or continue)
+	}
+
+	// --- 4. Return results as before ---
 	c.Data(http.StatusOK, "application/xml", []byte(detektXML))
 }
 
@@ -321,4 +373,108 @@ func runAnalysisContainer(repoURL string) (string, error) {
 	}
 
 	return string(reportBytes), nil
+}
+
+func listProjectsHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	if userID == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
+		return
+	}
+
+	ctx := context.Background()
+	rows, err := dbPool.Query(ctx, `
+        SELECT p.id, p.name, p.url, COALESCE(MAX(dr.detected_at), NULL) AS last_scan
+        FROM projects p
+        LEFT JOIN detekt_results dr ON dr.project_id = p.id
+        WHERE p.user_id = $1
+        GROUP BY p.id
+        ORDER BY last_scan DESC NULLS LAST
+    `, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch projects"})
+		return
+	}
+	defer rows.Close()
+
+	var projects []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name, url string
+		var lastScan *time.Time
+		if err := rows.Scan(&id, &name, &url, &lastScan); err != nil {
+			continue
+		}
+		projects = append(projects, map[string]interface{}{
+			"id":       id,
+			"name":     name,
+			"url":      url,
+			"lastScan": lastScan,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"projects": projects})
+}
+
+func listProjectScansHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	if userID == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
+		return
+	}
+
+	projectId := c.Param("projectId")
+	// Confirm project belongs to user (simple check)
+	var exists bool
+	err := dbPool.QueryRow(context.Background(), "SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1 AND user_id=$2)", projectId, userID).Scan(&exists)
+	if err != nil || !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	rows, err := dbPool.Query(context.Background(),
+		`SELECT id, detected_at FROM detekt_results WHERE project_id = $1 ORDER BY detected_at DESC`, projectId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch scans"})
+		return
+	}
+	defer rows.Close()
+
+	scans := []map[string]interface{}{}
+	for rows.Next() {
+		var id int
+		var detectedAt time.Time
+		if err := rows.Scan(&id, &detectedAt); err != nil {
+			continue
+		}
+		scans = append(scans, map[string]interface{}{
+			"id":         id,
+			"detectedAt": detectedAt,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"scans": scans})
+}
+
+func getScanHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	if userID == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
+		return
+	}
+	scanId := c.Param("scanId")
+	// Confirm the scan belongs to a project owned by user
+	var detektXML string
+	err := dbPool.QueryRow(context.Background(),
+		`SELECT dr.detekt_xml
+         FROM detekt_results dr
+         INNER JOIN projects p ON dr.project_id = p.id
+         WHERE dr.id = $1 AND p.user_id = $2`,
+		scanId, userID).Scan(&detektXML)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Scan not found"})
+		return
+	}
+	c.Data(http.StatusOK, "application/xml", []byte(detektXML))
 }
