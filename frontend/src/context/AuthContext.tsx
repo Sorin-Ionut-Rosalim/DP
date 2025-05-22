@@ -24,8 +24,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
 
+      // Defensive: Check content type first
+      const contentType = response.headers.get("Content-Type");
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        return; // or throw if you want to catch below
+      }
+
+      if (!contentType || !contentType.includes("application/json")) {
+        // Got HTML (e.g., login page or error)
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        return;
       }
 
       const data = await response.json();
