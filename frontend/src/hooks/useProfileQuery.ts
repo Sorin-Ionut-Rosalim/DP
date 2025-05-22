@@ -1,17 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 
+// Schema matches: { id: string, username: string }
 const userResponseSchema = z.object({
-  message: z.string(),
-  user: z.object({
-    id: z.number().transform(id => id.toString()),
-    username: z.string()
-  })
-}).transform(data => ({
-  id: data.user.id,
-  username: data.user.username,
-  // Add any additional transformed fields here
-}));
+  id: z.string(),
+  username: z.string(),
+});
 
 export type User = z.infer<typeof userResponseSchema>;
 
@@ -26,7 +20,7 @@ async function fetchProfile(): Promise<User> {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     const status = response.status;
-    const message = errorData.message || `Failed to fetch profile (HTTP ${status})`;
+    const message = errorData.error || errorData.message || `Failed to fetch profile (HTTP ${status})`;
     
     // Special handling for 401 errors
     if (status === 401) {
@@ -56,6 +50,6 @@ export function useProfileQuery() {
       return failureCount < 2;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchOnWindowFocus: false, // Optional: prevent refetch when tab gains focus
+    refetchOnWindowFocus: false,
   });
 }

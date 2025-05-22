@@ -10,17 +10,24 @@ const Register: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const handleRegister = async () => {
-    if (!username.trim()) {
-      setError('Username is required.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
+  if (!username.trim()) {
+    setError('Username is required.');
+    return;
+  }
+  if (password.length < 6) {
+    setError('Password must be at least 6 characters.');
+    return;
+  }
 
-    registerMutation({ username, password});
-  };
+  registerMutation(
+    { username, password },
+    {
+      onError: (err: any) => {
+        setError(err.message);
+      }
+    }
+  );
+};
 
   return (
     <div className="auth-pageWrapper">
