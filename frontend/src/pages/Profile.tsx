@@ -28,17 +28,27 @@ const Profile: React.FC = () => {
 
   const { data: scansData, isLoading: scansLoading, error: scansError } = useProjectScanQuery(selectedProjectId);
   const { data: scanXML, isLoading: scanXMLLoading, error: scanXMLError } = useScanXMLQuery(selectedScanId);
+  function formatUtcDate(dateString: string) {
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        year: "numeric",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(new Date(dateString)) + " UTC";
+    } catch {
+      return dateString;
+    }
+  }
+  // useEffect(() => {
+  //   console.log("[Profile] Profile Query:", { isLoading: profileLoading, error: profileError, data: user });
+  //   console.log("[Profile] Projects Query:", { isLoading: projectsLoading, error: projectsError, data: projectsData });
+  //   console.log("[Profile] Scans Query:", { isLoading: scansLoading, error: scansError, data: scansData, selectedProjectId });
+  //   console.log("[Profile] ScanXML Query:", { isLoading: scanXMLLoading, error: scanXMLError, data: scanXML, selectedScanId });
+  // }, [profileLoading, profileError, user, projectsLoading, projectsError, projectsData, scansLoading, scansError, scansData, selectedProjectId, scanXMLLoading, scanXMLError, scanXML, selectedScanId]);
 
-  // Debug logs (optional, can be commented out for production)
-  useEffect(() => {
-    console.log("[Profile] Profile Query:", { isLoading: profileLoading, error: profileError, data: user });
-    console.log("[Profile] Projects Query:", { isLoading: projectsLoading, error: projectsError, data: projectsData });
-    console.log("[Profile] Scans Query:", { isLoading: scansLoading, error: scansError, data: scansData, selectedProjectId });
-    console.log("[Profile] ScanXML Query:", { isLoading: scanXMLLoading, error: scanXMLError, data: scanXML, selectedScanId });
-  }, [profileLoading, profileError, user, projectsLoading, projectsError, projectsData, scansLoading, scansError, scansData, selectedProjectId, scanXMLLoading, scanXMLError, scanXML, selectedScanId]);
-
-
-  const hasAnyScan = projectsData?.projects?.some((project: Project) => !!project.lastScan) ?? false;
   const totalScannedProjects = projectsData?.projects?.filter((project: Project) => !!project.lastScan).length ?? 0;
 
   if (profileLoading) {
@@ -89,70 +99,91 @@ const Profile: React.FC = () => {
             </div>
           </div>
         </div>
-
         {/* Project History */}
-        <div className="project-history-card">
-          <h2>Project History</h2>
-          {projectsLoading ? (
-            <div>Loading projects...</div>
-          ) : projectsError ? (
-            <div style={{ color: 'red' }}>
-              <p><strong>Error loading projects:</strong> {projectsError.message}</p>
-              <p>This often means the backend API at `/api/projects` did not return data in the expected format. Please check the browser console (especially Zod validation errors from `useProjectQuery.ts`) and the Network tab for more details on the API response.</p>
-            </div>
-          ) : (
-            <ul className="project-list">
-              {projectsData?.projects?.length ? (
-                projectsData.projects.map((proj: Project) => (
-                  <li key={proj.id}>
-                    <button
-                      className={proj.id === selectedProjectId ? "active" : ""}
-                      onClick={() => { setSelectedProjectId(proj.id); setSelectedScanId(null); }}
-                    >
-                      {proj.name}
-                    </button>
-                    <span className="project-url">{proj.url}</span>
-                    <span className="project-lastscan">
-                      Last Scan: {proj.lastScan ? new Date(proj.lastScan).toLocaleString() : "Never"}
-                    </span>
-                  </li>
-                ))
-              ) : (
-                <li>No projects found. Go to "Clone" to scan your first repository.</li>
-              )}
-            </ul>
-          )}
-        </div>
-
-        {/* Scans for Selected Project */}
-        {selectedProjectId && !projectsError && ( // Only show if a project is selected and projects loaded fine
-          <div className="scan-history-card">
-            <h3>Scans for: {projectsData?.projects?.find(p => p.id === selectedProjectId)?.name || 'Selected Project'}</h3>
-            {scansLoading ? (
-              <div>Loading scans...</div>
-            ) : scansError ? (
-              <div style={{ color: 'red' }}>Error loading scans: {scansError.message}</div>
+          <div className="project-history-card">
+            <h2>Project History</h2>
+            {projectsLoading ? (
+              <div>Loading projects...</div>
+            ) : projectsError ? (
+              <div style={{ color: 'red' }}>
+                <p><strong>Error loading projects:</strong> {projectsError.message}</p>
+                <p>This often means the backend API at <code>/api/projects</code> did not return data in the expected format. Please check the browser console and the Network tab for more details.</p>
+              </div>
             ) : (
-              <ul className="scan-list">
-                {scansData?.scans?.length ? (
-                  scansData.scans.map((scan: Scan) => ( // Use the Scan type if available
-                    <li key={scan.id}>
-                      <button
-                        className={scan.id === selectedScanId ? "active" : ""}
-                        onClick={() => setSelectedScanId(scan.id)}
+              <>
+                {projectsData?.projects?.length ? (
+                  <div className="project-list-grid">
+                    {projectsData.projects.map((proj: Project) => (
+                      <div
+                        key={proj.id}
+                        className={`project-card-mini${proj.id === selectedProjectId ? " selected" : ""}`}
+                        onClick={() => { setSelectedProjectId(proj.id); setSelectedScanId(null); }}
+                        tabIndex={0}
+                        role="button"
                       >
-                        View Scan ({scan.id.substring(0, 8)}...)
-                      </button>
-                      <span className="scan-date">Date: {new Date(scan.detectedAt).toLocaleString()}</span>
-                    </li>
-                  ))
+                        <div className="project-title-row">
+                          <button
+                            className="project-select-btn"
+                            tabIndex={-1}
+                            style={{ background: proj.id === selectedProjectId ? "#012a4a" : "#468faf" }}
+                          >
+                            {proj.name}
+                          </button>
+                          <span className="project-lastscan">
+                            {proj.lastScan ? (
+                              <>
+                                <span className="dot-green" />
+                                Last Scan :<span className="datetime">{formatUtcDate(proj.lastScan)}</span>
+                              </>
+                            ) : (
+                              <span style={{ color: "#888" }}><span className="dot-grey" /> Never scanned</span>
+                            )}
+                          </span>
+                        </div>
+                        <a className="project-url-link" href={proj.url} target="_blank" rel="noopener noreferrer">
+                          {proj.url}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <li>No scans recorded for this project yet.</li>
+                  <div className="no-projects-message">No projects found. Go to "Clone" to scan your first repository.</div>
                 )}
-              </ul>
+              </>
             )}
           </div>
-        )}
+
+          {/* Scans for Selected Project */}
+          {selectedProjectId && !projectsError && (
+            <div className="scan-history-card">
+              <h3>
+                Scans for: {projectsData?.projects?.find(p => p.id === selectedProjectId)?.name || 'Selected Project'}
+              </h3>
+              {scansLoading ? (
+                <div>Loading scans...</div>
+              ) : scansError ? (
+                <div style={{ color: 'red' }}>Error loading scans: {scansError.message}</div>
+              ) : (
+                <div className="scan-list-row">
+                  {scansData?.scans?.length ? (
+                    scansData.scans.map((scan: Scan) => (
+                      <div key={scan.id} className={`scan-badge${scan.id === selectedScanId ? " selected" : ""}`}>
+                        <button
+                          className="scan-select-btn"
+                          onClick={() => setSelectedScanId(scan.id)}
+                        >
+                          View Scan ({scan.id.substring(0, 8)}...)
+                        </button>
+                        <span className="scan-date">{formatUtcDate(scan.detectedAt)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="no-scans-message">No scans recorded for this project yet.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
         {/* Detekt Results for Selected Scan */}
         {selectedScanId && !scansError && ( // Only show if a scan is selected and scans loaded fine
