@@ -7,6 +7,10 @@ if [[ -z "$REPO_URL" ]]; then
   exit 1
 fi
 
+if [[ -z "$SONAR_PROJECT_KEY" ]]; then
+  echo "Error: SONAR_PROJECT_KEY environment variable not set."
+fi
+
 WORKDIR="/data/repo"
 
 # Clean up any previous data
@@ -33,9 +37,9 @@ echo "Running SonarScanner analysis..."
 cd "$WORKDIR"
 sonar-scanner \
   -Dsonar.projectBaseDir="$WORKDIR" \
-  -Dsonar.projectKey=project \
+  -Dsonar.projectKey="$SONAR_PROJECT_KEY"  \
   -Dsonar.sources=. \
-  -Dsonar.host.url="${SONAR_HOST_URL:-http://sonarqube:9000}" \
+  -Dsonar.host.url=http://host.docker.internal:9000 \
   || true
 
 echo "Analysis finished. Reports should be in /data/"

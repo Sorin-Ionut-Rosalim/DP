@@ -4,7 +4,7 @@ const API_BASE_URL = 'http://localhost:4000';
 
 async function fetchScanXML(scanId: string | null): Promise<string> {
   if (!scanId) throw new Error("No scan selected.");
-  const url = `${API_BASE_URL}/api/scan/${scanId}`;
+  const url = `${API_BASE_URL}/api/scan/${scanId}/detekt`;
 
   const response = await fetch(url, {
     credentials: 'include',

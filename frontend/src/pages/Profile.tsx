@@ -6,6 +6,8 @@ import { useProjectQuery, Project } from '../hooks/useProjectQuery'; // Removed 
 import { useProjectScanQuery, Scan } from '../hooks/useProjectScanQuery'; // Assuming Scan type is exported
 import { useScanXMLQuery } from '../hooks/useScanXMLQuery';
 import DetektTable from '../components/DetektTable';
+import { useSonarQubeQuery, SonarQubeApiResponse } from '../hooks/useSonarQubeQuery'; // Check path
+import SonarQubeTable from '../components/SonarQubeTable'; // Check path
 
 const Profile: React.FC = () => {
   const { data: user, error: profileError, isLoading: profileLoading } = useProfileQuery();
@@ -13,6 +15,12 @@ const Profile: React.FC = () => {
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
+
+  const { 
+    data: sonarQubeResults, 
+    isLoading: sonarQubeLoading, 
+    error: sonarQubeError 
+  } = useSonarQubeQuery(selectedScanId); // selectedScanId is the Detekt scan ID
 
   // Auto-select the first project
   useEffect(() => {
@@ -197,6 +205,24 @@ const Profile: React.FC = () => {
               scanXML ? <DetektTable xml={scanXML} /> : <div>No Detekt XML data available for this scan.</div>
             )}
           </div>
+        )}
+        {selectedScanId && !projectsError && ( // Show if a Detekt scan is selected and projects loaded
+          <div className="sonarqube-results-card" 
+            style={{ marginTop: '2.5rem', background: '#fff', borderRadius: '10px', padding: '2rem', boxShadow: '0 2px 8px rgba(10,30,50,0.08)', width: '100%', maxWidth: '900px' }}>
+            <h3>SonarQube Analysis Issues</h3>
+            {sonarQubeLoading ? (
+                <div>Loading SonarQube results...</div>
+            ) : sonarQubeError ? (
+                <div style={{ color: 'red' }}>
+                    <p><strong>Error loading SonarQube results:</strong> {sonarQubeError.message}</p>
+                    <p>This might indicate that SonarQube analysis failed, data is not yet available, or there was an issue fetching it.</p>
+                </div>
+            ) : sonarQubeResults ? (
+                <SonarQubeTable sonarData={sonarQubeResults} />
+            ) : (
+                <div>No SonarQube data available for this analysis run.</div>
+            )}
+            </div>
         )}
       </div>
     </div>

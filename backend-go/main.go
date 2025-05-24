@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -79,7 +80,8 @@ func main() {
 	r.POST("/api/clone", cloneHandler)
 	r.GET("/api/projects", listProjectsHandler)
 	r.GET("/api/project/:projectId/scans", listProjectScansHandler)
-	r.GET("/api/scan/:scanId", getScanHandler)
+	r.GET("/api/scan/:scanId/sonarqube", getSonarQubeResultsForDetektScanHandler)
+	r.GET("/api/scan/:scanId/detekt", getScanHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -210,45 +212,89 @@ func cloneHandler(c *gin.Context) {
 		RepoURL string `json:"repoUrl" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.RepoURL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request: repoUrl is required."})
 		return
 	}
+
 	session := sessions.Default(c)
 	userID := session.Get("userID")
 	if userID == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
 		return
 	}
+
 	ctx := context.Background()
 	var projectID string
 	parts := strings.Split(strings.TrimSuffix(req.RepoURL, ".git"), "/")
 	projectName := parts[len(parts)-1]
+
+	// Find or create project
 	err := dbPool.QueryRow(ctx, "SELECT id FROM projects WHERE user_id = $1 AND url = $2", userID, req.RepoURL).Scan(&projectID)
-	if err != nil {
+	if err != nil { // Assuming pgx.ErrNoRows if not found
 		err2 := dbPool.QueryRow(ctx,
 			`INSERT INTO projects (user_id, name, url) VALUES ($1, $2, $3) RETURNING id`,
 			userID, projectName, req.RepoURL).Scan(&projectID)
 		if err2 != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save project"})
+			log.Printf("Error inserting new project %s: %v", projectName, err2)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Could not save project"})
 			return
 		}
+		log.Printf("Created new project %s with ID: %s", projectName, projectID)
+	} else {
+		log.Printf("Found existing project %s with ID: %s", projectName, projectID)
 	}
-	detektXML, err := runAnalysisContainer(req.RepoURL)
+
+	projectKeyForSonar := fmt.Sprintf("proj_%s_%s", userID, projectID)
+
+	// Run Analysis
+	detektXML, err := runAnalysisContainer(req.RepoURL, projectKeyForSonar)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Scan failed", "details": err.Error()})
+		log.Printf("Scan failed (runAnalysisContainer) for %s: %v", req.RepoURL, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Detekt scan failed", "details": err.Error()})
 		return
 	}
+
+	// Store Detekt Results
 	_, err = dbPool.Exec(ctx, `
         INSERT INTO detekt_results (project_id, detekt_xml, detected_at)
         VALUES ($1, $2, $3)
     `, projectID, detektXML, time.Now())
 	if err != nil {
-		log.Printf("Failed to insert detekt result: %v", err)
+		log.Printf("Failed to insert detekt result for projectID %s: %v", projectID, err)
+		// Decide if this is critical enough to stop. For now, we log and continue to SonarQube.
+	} else {
+		log.Printf("Successfully stored Detekt results for projectID %s", projectID)
 	}
+
+	// --- New: Fetch and Store SonarQube Results ---
+	sonarHostURL := os.Getenv("SONAR_HOST_URL")
+	if sonarHostURL == "" {
+		sonarHostURL = "http://localhost:9000"
+	}
+
+	log.Printf("Attempting to fetch SonarQube results for projectKey: '%s' from host: %s", projectKeyForSonar, sonarHostURL)
+	sonarIssuesJSON, sonarErr := fetchSonarQubeIssues(projectKeyForSonar, sonarHostURL)
+	if sonarErr != nil {
+		log.Printf("Failed to fetch SonarQube issues for projectID %s (SonarKey '%s'): %v", projectID, projectKeyForSonar, sonarErr)
+		// Not treating this as a fatal error for the clone operation itself; Detekt XML will still be returned.
+		// The frontend will simply not find SonarQube data for this scan attempt.
+	} else if sonarIssuesJSON != "" {
+		_, sonarStoreErr := storeSonarQubeResults(ctx, projectID, sonarIssuesJSON)
+		if sonarStoreErr != nil {
+			log.Printf("Failed to store SonarQube results for projectID %s: %v", projectID, sonarStoreErr)
+		} else {
+			log.Printf("Successfully fetched and stored SonarQube results for projectID %s related to SonarKey '%s'", projectID, projectKeyForSonar)
+		}
+	}
+	// --- End of New SonarQube Logic ---
+
+	// The cloneHandler currently returns Detekt XML directly.
+	// We will keep this behavior for now to minimize immediate changes to the useCloneMutation hook.
+	// The Profile page will be responsible for fetching SonarQube data separately using a new hook.
 	c.Data(http.StatusOK, "application/xml", []byte(detektXML))
 }
 
-func runAnalysisContainer(repoURL string) (string, error) {
+func runAnalysisContainer(repoURL string, sonarProjectKey string) (string, error) {
 	tempDir, err := os.MkdirTemp("", "scan-")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %w", err)
@@ -259,10 +305,20 @@ func runAnalysisContainer(repoURL string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("docker client error: %w", err)
 	}
+
+	sonarHostURL := os.Getenv("SONAR_HOST_URL")
+	if sonarHostURL == "" {
+		sonarHostURL = "http://localhost:9000"
+	}
+
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: "repo-analyzer:latest",
-		Env:   []string{fmt.Sprintf("REPO_URL=%s", repoURL)},
-		Tty:   false,
+		Env: []string{
+			fmt.Sprintf("REPO_URL=%s", repoURL),
+			fmt.Sprintf("SONAR_PROJECT_KEY=%s", sonarProjectKey),
+			fmt.Sprintf("SONAR_HOST_URL=%s", sonarHostURL),
+		},
+		Tty: false,
 	}, &container.HostConfig{
 		Mounts: []mount.Mount{
 			{
@@ -390,4 +446,123 @@ func getScanHandler(c *gin.Context) {
 		return
 	}
 	c.Data(http.StatusOK, "application/xml", []byte(detektXML))
+}
+
+func fetchSonarQubeIssues(projectKey string, sonarHostURL string) (string, error) {
+	// Ensure sonarHostURL does not have a trailing slash for clean joining
+	sonarHostURL = strings.TrimSuffix(sonarHostURL, "/")
+
+	// The SonarQube API call might take a few moments after the scanner finishes
+	// Consider adding a small delay or a more robust polling mechanism if needed.
+	// For now, we'll proceed directly. If scans appear empty, a delay might be needed here.
+	time.Sleep(10 * time.Second) // Example: uncomment and adjust if needed
+
+	// Construct the API URL for fetching issues.
+	// This projectKey MUST match the one used in analyze.sh's sonar-scanner command.
+	// Currently, analyze.sh uses "-Dsonar.projectKey=project"
+	apiURL := fmt.Sprintf("%s/api/issues/search?componentKeys=%s&resolved=false&ps=500", sonarHostURL, projectKey) // ps=500 to get up to 500 issues
+	log.Printf("Fetching SonarQube issues from: %s", apiURL)
+
+	httpClient := &http.Client{Timeout: 45 * time.Second} // Increased timeout
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create SonarQube API request: %w", err)
+	}
+
+	// If your SonarQube instance requires authentication (e.g., for private projects or API access)
+	sonarToken := os.Getenv("SONAR_API_TOKEN") // Example environment variable for a token
+	if sonarToken != "" {
+		req.SetBasicAuth(sonarToken, "") // Or req.Header.Set("Authorization", "Bearer " + sonarToken)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute SonarQube API request to %s: %w", apiURL, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("SonarQube API request to %s failed with status %d: %s", apiURL, resp.StatusCode, string(bodyBytes))
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read SonarQube API response body: %w", err)
+	}
+
+	log.Printf("Successfully fetched SonarQube data, length: %d", len(bodyBytes))
+	return string(bodyBytes), nil
+}
+
+func storeSonarQubeResults(ctx context.Context, projectID string, sonarJSON string) (string, error) {
+	var sonarResultID string
+	// Storing JSON data in the sonar_xml column
+	err := dbPool.QueryRow(ctx,
+		`INSERT INTO sonarqube_results (project_id, sonar_xml, detected_at)
+         VALUES ($1, $2, $3) RETURNING id`,
+		projectID, sonarJSON, time.Now()).Scan(&sonarResultID)
+	if err != nil {
+		return "", fmt.Errorf("failed to insert SonarQube result into DB: %w", err)
+	}
+	log.Printf("Stored SonarQube results with ID: %s for project ID: %s", sonarResultID, projectID)
+	return sonarResultID, nil
+}
+
+// New Handler function:
+func getSonarQubeResultsForDetektScanHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	userIDRaw := session.Get("userID")
+	if userIDRaw == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
+		return
+	}
+	userID := userIDRaw.(string)
+	scanId := c.Param("scanId")
+
+	var projectID string
+	var detektDetectedAt time.Time
+
+	// Step 1: Get the project_id and detected_at for the given detektScanID, ensuring the user owns the project.
+	err := dbPool.QueryRow(context.Background(), `
+        SELECT dr.project_id, dr.detected_at
+        FROM detekt_results dr
+        JOIN projects p ON dr.project_id = p.id
+        WHERE dr.id = $1 AND p.user_id = $2`, scanId, userID).Scan(&projectID, &detektDetectedAt)
+
+	if err != nil {
+		if err.Error() == "no rows in result set" { // pgx.ErrNoRows might not be directly comparable
+			c.JSON(http.StatusNotFound, gin.H{"error": "Detekt scan not found or access denied"})
+		} else {
+			log.Printf("Error fetching detekt scan details for detektScanID %s: %v", scanId, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching detekt scan details"})
+		}
+		return
+	}
+
+	// Step 2: Find a sonarqube_result for that project_id around the same time as the Detekt scan.
+	// This heuristic is used because the current schema links sonarqube_results directly to projects,
+	// not to a specific detekt_results entry. We look for the closest SonarQube scan.
+	var sonarData string
+	err = dbPool.QueryRow(context.Background(), `
+        SELECT sr.sonar_xml 
+        FROM sonarqube_results sr
+        WHERE sr.project_id = $1 
+          AND sr.detected_at BETWEEN $2::timestamp - interval '15 minutes' AND $2::timestamp + interval '15 minutes' -- Wider window
+        ORDER BY ABS(EXTRACT(EPOCH FROM (sr.detected_at - $2::timestamp))) -- Closest one in time
+        LIMIT 1`, projectID, detektDetectedAt).Scan(&sonarData)
+
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			log.Printf("No corresponding SonarQube scan data found for detektScanID %s (projectID %s, detektTime %s)", scanId, projectID, detektDetectedAt)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Corresponding SonarQube scan data not found for this analysis run."})
+		} else {
+			log.Printf("Error fetching SonarQube data for projectID %s (related to detektScanID %s): %v", projectID, scanId, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch SonarQube scan data"})
+		}
+		return
+	}
+
+	// SonarQube issues data is JSON.
+	c.Data(http.StatusOK, "application/json", []byte(sonarData))
 }
