@@ -36,7 +36,7 @@ const Sidebar: React.FC = () => {
           <Link to="/profile" className="sidebar-link">Profile</Link>
         </li>
         <li>
-          <Link to="/clone" className="sidebar-link">Clone</Link>
+          <Link to="/scan" className="sidebar-link">Scan</Link>
         </li>
         <li>
           <button 

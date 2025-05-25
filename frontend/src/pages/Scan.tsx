@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
-import { useCloneMutation } from "../hooks/useCloneMutation";
-import "./Clone.css";
+import { useScanMutation } from "../hooks/useScanMutation";
+import "./Scan.css";
 import DetektTable from "../components/DetektTable";
 
-const Clone: React.FC = () => {
+const Scan: React.FC = () => {
   const [repoUrl, setRepoUrl] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [detektXML, setDetektXML] = useState<string | null>(null);
 
   // Destructure the mutation result
-  const { mutateAsync, status } = useCloneMutation();
+  const { mutateAsync, status } = useScanMutation();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -37,7 +37,7 @@ const Clone: React.FC = () => {
     );
   }
 
-  const handleClone = async () => {
+  const handleScan = async () => {
     if (!repoUrl.trim()) {
       setStatusMessage("Please enter a valid repository URL.");
       return;
@@ -49,20 +49,20 @@ const Clone: React.FC = () => {
       setStatusMessage("✅ Scan complete!");
       setDetektXML(message);
     } catch (err) {
-      setStatusMessage(`❌ ${err instanceof Error ? err.message : "Clone failed"}`);
+      setStatusMessage(`❌ ${err instanceof Error ? err.message : "Scan failed"}`);
     }
   };
 
   return (
-    <div className="clone-container">
+    <div className="scan-container">
       <Sidebar />
-      <div className="clone-content">
-        <h1 className="clone-title">Clone a Repository</h1>
+      <div className="scan-content">
+        <h1 className="scan-title">Scan a Repository</h1>
 
-        <div className="clone-input-container">
+        <div className="scan-input-container">
           <input
             type="text"
-            className="clone-input"
+            className="scan-input"
             placeholder="Enter GitHub Repo URL"
             value={repoUrl}
             onChange={(e) => {
@@ -74,18 +74,18 @@ const Clone: React.FC = () => {
         </div>
 
         <button
-          className="clone-button"
-          onClick={handleClone}
+          className="scan-button"
+          onClick={handleScan}
           disabled={status === "pending"}
         >
-          {status === "pending" ? "Scanning..." : "Clone Repository"}
+          {status === "pending" ? "Scanning..." : "Scan Repository"}
         </button>
         {status === "pending" && <div className="spinner">⏳ Scanning, please wait...</div>}
-        {statusMessage && <p className="clone-status">{statusMessage}</p>}
+        {statusMessage && <p className="scan-status">{statusMessage}</p>}
         {detektXML && <DetektTable xml={detektXML} />}
       </div>
     </div>
   );
 };
 
-export default Clone;
+export default Scan;

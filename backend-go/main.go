@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -77,11 +79,11 @@ func main() {
 	r.GET("/api/profile", profileHandler)
 
 	// Detekt
-	r.POST("/api/clone", cloneHandler)
+	r.POST("/api/scan", runScanHandler)
 	r.GET("/api/projects", listProjectsHandler)
 	r.GET("/api/project/:projectId/scans", listProjectScansHandler)
-	r.GET("/api/scan/:scanId/sonarqube", getSonarQubeResultsForDetektScanHandler)
-	r.GET("/api/scan/:scanId/detekt", getScanHandler)
+	r.GET("/api/scan/:scanId/detekt", getDetektResultByScanHandler)
+	r.GET("/api/scan/:scanId/sonarqube", getSonarQubeResultByScanHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -205,9 +207,17 @@ func profileHandler(c *gin.Context) {
 	})
 }
 
-// --------------- Detekt (scan and results) ------------
+// --------------- (scan and results) ------------
 
-func cloneHandler(c *gin.Context) {
+func createScan(ctx context.Context, projectID, userID string) (string, error) {
+	var scanID string
+	err := dbPool.QueryRow(ctx, `
+		INSERT INTO scans (project_id, user_id) VALUES ($1, $2) RETURNING id
+	`, projectID, userID).Scan(&scanID)
+	return scanID, err
+}
+
+func runScanHandler(c *gin.Context) {
 	var req struct {
 		RepoURL string `json:"repoUrl" binding:"required"`
 	}
@@ -230,7 +240,7 @@ func cloneHandler(c *gin.Context) {
 
 	// Find or create project
 	err := dbPool.QueryRow(ctx, "SELECT id FROM projects WHERE user_id = $1 AND url = $2", userID, req.RepoURL).Scan(&projectID)
-	if err != nil { // Assuming pgx.ErrNoRows if not found
+	if err != nil {
 		err2 := dbPool.QueryRow(ctx,
 			`INSERT INTO projects (user_id, name, url) VALUES ($1, $2, $3) RETURNING id`,
 			userID, projectName, req.RepoURL).Scan(&projectID)
@@ -244,6 +254,14 @@ func cloneHandler(c *gin.Context) {
 		log.Printf("Found existing project %s with ID: %s", projectName, projectID)
 	}
 
+	// Create a scan entry (this is the unique "run" id)
+	scanID, err := createScan(ctx, projectID, userID.(string))
+	if err != nil {
+		log.Printf("Failed to create scan entry: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Could not create scan"})
+		return
+	}
+
 	projectKeyForSonar := fmt.Sprintf("proj_%s_%s", userID, projectID)
 
 	// Run Analysis
@@ -254,19 +272,18 @@ func cloneHandler(c *gin.Context) {
 		return
 	}
 
-	// Store Detekt Results
+	// Store Detekt Results for this scan
 	_, err = dbPool.Exec(ctx, `
-        INSERT INTO detekt_results (project_id, detekt_xml, detected_at)
+        INSERT INTO detekt_results (scan_id, detekt_xml, detected_at)
         VALUES ($1, $2, $3)
-    `, projectID, detektXML, time.Now())
+    `, scanID, detektXML, time.Now())
 	if err != nil {
-		log.Printf("Failed to insert detekt result for projectID %s: %v", projectID, err)
-		// Decide if this is critical enough to stop. For now, we log and continue to SonarQube.
+		log.Printf("Failed to insert detekt result for scanID %s: %v", scanID, err)
 	} else {
-		log.Printf("Successfully stored Detekt results for projectID %s", projectID)
+		log.Printf("Successfully stored Detekt results for scanID %s", scanID)
 	}
 
-	// --- New: Fetch and Store SonarQube Results ---
+	// --- Fetch and Store SonarQube Results ---
 	sonarHostURL := os.Getenv("SONAR_HOST_URL")
 	if sonarHostURL == "" {
 		sonarHostURL = "http://localhost:9000"
@@ -275,23 +292,21 @@ func cloneHandler(c *gin.Context) {
 	log.Printf("Attempting to fetch SonarQube results for projectKey: '%s' from host: %s", projectKeyForSonar, sonarHostURL)
 	sonarIssuesJSON, sonarErr := fetchSonarQubeIssues(projectKeyForSonar, sonarHostURL)
 	if sonarErr != nil {
-		log.Printf("Failed to fetch SonarQube issues for projectID %s (SonarKey '%s'): %v", projectID, projectKeyForSonar, sonarErr)
-		// Not treating this as a fatal error for the clone operation itself; Detekt XML will still be returned.
-		// The frontend will simply not find SonarQube data for this scan attempt.
+		log.Printf("Failed to fetch SonarQube issues for scanID %s: %v", scanID, sonarErr)
 	} else if sonarIssuesJSON != "" {
-		_, sonarStoreErr := storeSonarQubeResults(ctx, projectID, sonarIssuesJSON)
+		_, sonarStoreErr := dbPool.Exec(ctx, `
+			INSERT INTO sonarqube_results (scan_id, sonar_xml, detected_at)
+			VALUES ($1, $2, $3)
+		`, scanID, sonarIssuesJSON, time.Now())
 		if sonarStoreErr != nil {
-			log.Printf("Failed to store SonarQube results for projectID %s: %v", projectID, sonarStoreErr)
+			log.Printf("Failed to store SonarQube results for scanID %s: %v", scanID, sonarStoreErr)
 		} else {
-			log.Printf("Successfully fetched and stored SonarQube results for projectID %s related to SonarKey '%s'", projectID, projectKeyForSonar)
+			log.Printf("Successfully fetched and stored SonarQube results for scanID %s", scanID)
 		}
 	}
-	// --- End of New SonarQube Logic ---
 
-	// The cloneHandler currently returns Detekt XML directly.
-	// We will keep this behavior for now to minimize immediate changes to the useCloneMutation hook.
-	// The Profile page will be responsible for fetching SonarQube data separately using a new hook.
-	c.Data(http.StatusOK, "application/xml", []byte(detektXML))
+	// Return the scan id so the frontend can fetch both results
+	c.JSON(http.StatusOK, gin.H{"scanId": scanID})
 }
 
 func runAnalysisContainer(repoURL string, sonarProjectKey string) (string, error) {
@@ -300,23 +315,35 @@ func runAnalysisContainer(repoURL string, sonarProjectKey string) (string, error
 		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
+
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return "", fmt.Errorf("docker client error: %w", err)
 	}
 
-	sonarHostURL := os.Getenv("SONAR_HOST_URL")
-	if sonarHostURL == "" {
-		sonarHostURL = "http://localhost:9000"
+	sonarScannerHostURL := os.Getenv("SONAR_HOST_URL")
+	if sonarScannerHostURL == "" {
+		sonarScannerHostURL = "http://host.docker.internal:9000"
 	}
+
+	sonarToken := os.Getenv("SONAR_TOKEN")
+
+	// Get the SonarQube token for the scanner
+	sonarScannerToken := os.Getenv("SONAR_LOGIN_TOKEN") // From backend's environment
+	if sonarScannerToken == "" {
+		log.Println("Warning: SONAR_LOGIN_TOKEN is not set in the backend environment. SonarScanner might fail if authentication is required.")
+	}
+
+	log.Printf("Starting analysis container with SONAR_PROJECT_KEY: %s and target Sonar Host for scanner: %s", sonarProjectKey, sonarScannerHostURL)
 
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: "repo-analyzer:latest",
 		Env: []string{
 			fmt.Sprintf("REPO_URL=%s", repoURL),
 			fmt.Sprintf("SONAR_PROJECT_KEY=%s", sonarProjectKey),
-			fmt.Sprintf("SONAR_HOST_URL=%s", sonarHostURL),
+			fmt.Sprintf("SONAR_HOST_URL=%s", sonarScannerHostURL),
+			fmt.Sprintf("SONAR_TOKEN=%s", sonarToken),
 		},
 		Tty: false,
 	}, &container.HostConfig{
@@ -329,24 +356,86 @@ func runAnalysisContainer(repoURL string, sonarProjectKey string) (string, error
 		},
 		AutoRemove: true,
 	}, nil, nil, "")
-	if err != nil {
-		return "", fmt.Errorf("failed to create container: %w", err)
-	}
+
 	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 		return "", fmt.Errorf("failed to start container: %w", err)
 	}
-	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			return "", fmt.Errorf("container wait error: %w", err)
-		}
-	case <-statusCh:
+
+	// --- Add Log Reading ---
+	logReader, errLog := cli.ContainerLogs(ctx, resp.ID, container.LogsOptions{ShowStdout: true, ShowStderr: true, Follow: false, Timestamps: false})
+	if errLog != nil {
+		log.Printf("Error setting up container log reader for %s: %v", resp.ID, errLog)
+		// Continue without live log streaming if setup fails, will attempt to read after stop
 	}
+	if logReader != nil { // Close it eventually
+		defer logReader.Close()
+	}
+
+	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		// If start fails, attempt to remove the container to prevent orphans
+		_ = cli.ContainerRemove(context.Background(), resp.ID, container.RemoveOptions{Force: true})
+		return "", fmt.Errorf("failed to start container %s: %w", resp.ID, err)
+	}
+
+	log.Printf("Analysis container %s started. Waiting for completion...", resp.ID)
+
+	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+	var statusCode int64 = -1 // Default to error status
+
+	select {
+	case errWait := <-errCh:
+		if errWait != nil {
+			log.Printf("Container %s wait error: %v", resp.ID, errWait)
+			// Attempt to get logs even on wait error
+			// Note: logReader might be nil if errLog above was not nil
+			if logReader != nil {
+				logBufferOut := new(strings.Builder)
+				logBufferErr := new(strings.Builder)
+				_, _ = stdcopy.StdCopy(logBufferOut, logBufferErr, logReader) // Drain logs
+				if logBufferOut.Len() > 0 {
+					log.Printf("Container %s Stdout on WaitError:\n%s", resp.ID, logBufferOut.String())
+				}
+				if logBufferErr.Len() > 0 {
+					log.Printf("Container %s Stderr on WaitError:\n%s", resp.ID, logBufferErr.String())
+				}
+			}
+			return "", fmt.Errorf("container %s execution error: %w", resp.ID, errWait)
+		}
+		log.Printf("Container %s finished (error channel indicated completion without error, but check status code)", resp.ID)
+		// This path might be taken if an error occurred but was not a 'wait' error.
+		// We need the actual status from statusCh.
+	case status := <-statusCh:
+		statusCode = status.StatusCode
+		log.Printf("Container %s finished with status code: %d", resp.ID, statusCode)
+		// Read logs after successful completion or known exit code
+		if logReader != nil {
+			logBufferOut := new(strings.Builder)
+			logBufferErr := new(strings.Builder)
+			_, errCopy := stdcopy.StdCopy(logBufferOut, logBufferErr, logReader)
+			if errCopy != nil && errCopy != io.EOF { // EOF is expected
+				log.Printf("Error copying container %s logs: %v", resp.ID, errCopy)
+			}
+			if logBufferOut.Len() > 0 {
+				log.Printf("Container %s Stdout:\n%s", resp.ID, logBufferOut.String())
+			}
+			if logBufferErr.Len() > 0 {
+				log.Printf("Container %s Stderr:\n%s", resp.ID, logBufferErr.String())
+			}
+		}
+		if statusCode != 0 {
+			return "", fmt.Errorf("analysis container %s exited with non-zero status: %d", resp.ID, statusCode)
+		}
+	}
+	// Ensure the file exists and handle errors before reading
 	reportPath := filepath.Join(tempDir, "detekt-report.xml")
-	reportBytes, err := os.ReadFile(reportPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read report: %w", err)
+	if _, errStat := os.Stat(reportPath); os.IsNotExist(errStat) {
+		log.Printf("Detekt report file not found at %s after container run.", reportPath)
+		return "", fmt.Errorf("detekt report file not found at %s", reportPath)
+	}
+
+	reportBytes, errRead := os.ReadFile(reportPath)
+	if errRead != nil {
+		return "", fmt.Errorf("failed to read detekt report from %s: %w", reportPath, errRead)
 	}
 	return string(reportBytes), nil
 }
@@ -398,14 +487,17 @@ func listProjectScansHandler(c *gin.Context) {
 		return
 	}
 	projectId := c.Param("projectId")
+
+	// Check ownership
 	var exists bool
 	err := dbPool.QueryRow(context.Background(), "SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1 AND user_id=$2)", projectId, userID).Scan(&exists)
 	if err != nil || !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		return
 	}
+
 	rows, err := dbPool.Query(context.Background(),
-		`SELECT id, detected_at FROM detekt_results WHERE project_id = $1 ORDER BY detected_at DESC`, projectId)
+		`SELECT id, started_at FROM scans WHERE project_id = $1 ORDER BY started_at DESC`, projectId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch scans"})
 		return
@@ -414,19 +506,19 @@ func listProjectScansHandler(c *gin.Context) {
 	scans := []map[string]interface{}{}
 	for rows.Next() {
 		var id string
-		var detectedAt time.Time
-		if err := rows.Scan(&id, &detectedAt); err != nil {
+		var startedAt time.Time
+		if err := rows.Scan(&id, &startedAt); err != nil {
 			continue
 		}
 		scans = append(scans, map[string]interface{}{
-			"id":         id,
-			"detectedAt": detectedAt,
+			"id":        id,
+			"startedAt": startedAt,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"scans": scans})
 }
 
-func getScanHandler(c *gin.Context) {
+func getDetektResultByScanHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	userID := session.Get("userID")
 	if userID == nil {
@@ -438,8 +530,8 @@ func getScanHandler(c *gin.Context) {
 	err := dbPool.QueryRow(context.Background(),
 		`SELECT dr.detekt_xml
          FROM detekt_results dr
-         INNER JOIN projects p ON dr.project_id = p.id
-         WHERE dr.id = $1 AND p.user_id = $2`,
+         INNER JOIN scans s ON dr.scan_id = s.id
+         WHERE dr.scan_id = $1 AND s.user_id = $2`,
 		scanId, userID).Scan(&detektXML)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Scan not found"})
@@ -458,10 +550,12 @@ func fetchSonarQubeIssues(projectKey string, sonarHostURL string) (string, error
 	time.Sleep(10 * time.Second) // Example: uncomment and adjust if needed
 
 	// Construct the API URL for fetching issues.
-	// This projectKey MUST match the one used in analyze.sh's sonar-scanner command.
-	// Currently, analyze.sh uses "-Dsonar.projectKey=project"
-	apiURL := fmt.Sprintf("%s/api/issues/search?componentKeys=%s&resolved=false&ps=500", sonarHostURL, projectKey) // ps=500 to get up to 500 issues
-	log.Printf("Fetching SonarQube issues from: %s", apiURL)
+	apiURL := fmt.Sprintf(
+		"%s/api/issues/search?componentKeys=%s&resolved=false&ps=500&s=FILE_LINE&asc=true&f=key,rule,severity,component,project,line,message,status,creationDate,type",
+		sonarHostURL,
+		projectKey,
+	)
+	log.Printf("Fetching SonarQube issues from (enhanced URL): %s", apiURL)
 
 	httpClient := &http.Client{Timeout: 45 * time.Second} // Increased timeout
 	req, err := http.NewRequest("GET", apiURL, nil)
@@ -469,10 +563,9 @@ func fetchSonarQubeIssues(projectKey string, sonarHostURL string) (string, error
 		return "", fmt.Errorf("failed to create SonarQube API request: %w", err)
 	}
 
-	// If your SonarQube instance requires authentication (e.g., for private projects or API access)
-	sonarToken := os.Getenv("SONAR_API_TOKEN") // Example environment variable for a token
+	sonarToken := os.Getenv("SONAR_API_TOKEN")
 	if sonarToken != "" {
-		req.SetBasicAuth(sonarToken, "") // Or req.Header.Set("Authorization", "Bearer " + sonarToken)
+		req.SetBasicAuth(sonarToken, "")
 	}
 
 	resp, err := httpClient.Do(req)
@@ -510,59 +603,93 @@ func storeSonarQubeResults(ctx context.Context, projectID string, sonarJSON stri
 }
 
 // New Handler function:
-func getSonarQubeResultsForDetektScanHandler(c *gin.Context) {
+func getSonarQubeResultByScanHandler(c *gin.Context) {
 	session := sessions.Default(c)
-	userIDRaw := session.Get("userID")
-	if userIDRaw == nil {
+	userID := session.Get("userID")
+	if userID == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
 		return
 	}
-	userID := userIDRaw.(string)
 	scanId := c.Param("scanId")
-
-	var projectID string
-	var detektDetectedAt time.Time
-
-	// Step 1: Get the project_id and detected_at for the given detektScanID, ensuring the user owns the project.
-	err := dbPool.QueryRow(context.Background(), `
-        SELECT dr.project_id, dr.detected_at
-        FROM detekt_results dr
-        JOIN projects p ON dr.project_id = p.id
-        WHERE dr.id = $1 AND p.user_id = $2`, scanId, userID).Scan(&projectID, &detektDetectedAt)
-
-	if err != nil {
-		if err.Error() == "no rows in result set" { // pgx.ErrNoRows might not be directly comparable
-			c.JSON(http.StatusNotFound, gin.H{"error": "Detekt scan not found or access denied"})
-		} else {
-			log.Printf("Error fetching detekt scan details for detektScanID %s: %v", scanId, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching detekt scan details"})
-		}
-		return
-	}
-
-	// Step 2: Find a sonarqube_result for that project_id around the same time as the Detekt scan.
-	// This heuristic is used because the current schema links sonarqube_results directly to projects,
-	// not to a specific detekt_results entry. We look for the closest SonarQube scan.
 	var sonarData string
-	err = dbPool.QueryRow(context.Background(), `
-        SELECT sr.sonar_xml 
-        FROM sonarqube_results sr
-        WHERE sr.project_id = $1 
-          AND sr.detected_at BETWEEN $2::timestamp - interval '15 minutes' AND $2::timestamp + interval '15 minutes' -- Wider window
-        ORDER BY ABS(EXTRACT(EPOCH FROM (sr.detected_at - $2::timestamp))) -- Closest one in time
-        LIMIT 1`, projectID, detektDetectedAt).Scan(&sonarData)
-
+	err := dbPool.QueryRow(context.Background(),
+		`SELECT sr.sonar_xml
+         FROM sonarqube_results sr
+         INNER JOIN scans s ON sr.scan_id = s.id
+         WHERE sr.scan_id = $1 AND s.user_id = $2`,
+		scanId, userID).Scan(&sonarData)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
-			log.Printf("No corresponding SonarQube scan data found for detektScanID %s (projectID %s, detektTime %s)", scanId, projectID, detektDetectedAt)
-			c.JSON(http.StatusNotFound, gin.H{"error": "Corresponding SonarQube scan data not found for this analysis run."})
-		} else {
-			log.Printf("Error fetching SonarQube data for projectID %s (related to detektScanID %s): %v", projectID, scanId, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch SonarQube scan data"})
-		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "SonarQube scan not found"})
 		return
 	}
-
-	// SonarQube issues data is JSON.
 	c.Data(http.StatusOK, "application/json", []byte(sonarData))
+}
+
+func waitForSonarAnalysis(projectKey string, sonarHostURL string, timeout time.Duration) error {
+	startTime := time.Now()
+	sonarHostURL = strings.TrimSuffix(sonarHostURL, "/")
+	// This API endpoint shows the latest analyses for a project.
+	analysisStatusURL := fmt.Sprintf("%s/api/project_analyses/search?project=%s&ps=1", sonarHostURL, projectKey)
+	scanSubmissionTime := time.Now().Add(-15 * time.Second) // Estimate submission time slightly before polling starts
+
+	log.Printf("Waiting up to %v for SonarQube analysis to complete for projectKey: %s", timeout, projectKey)
+
+	for {
+		if time.Since(startTime) > timeout {
+			return fmt.Errorf("timeout waiting for SonarQube analysis to complete for projectKey %s after %v", projectKey, timeout)
+		}
+
+		time.Sleep(8 * time.Second) // Poll every 8 seconds
+
+		httpClient := &http.Client{Timeout: 20 * time.Second}
+		req, err := http.NewRequest("GET", analysisStatusURL, nil)
+		if err != nil {
+			log.Printf("Error creating request for SonarQube analysis status: %v", err)
+			continue
+		}
+
+		sonarToken := os.Getenv("SONAR_API_TOKEN")
+		if sonarToken != "" {
+			req.SetBasicAuth(sonarToken, "")
+		}
+
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			log.Printf("Error polling SonarQube analysis status for %s: %v", projectKey, err)
+			continue
+		}
+
+		bodyBytes, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close() // Ensure body is closed
+
+		if readErr != nil {
+			log.Printf("Error reading SonarQube analysis status response body for %s: %v", projectKey, readErr)
+			continue
+		}
+
+		if resp.StatusCode == http.StatusOK {
+			var result struct {
+				Analyses []struct {
+					Date time.Time `json:"date"`
+				} `json:"analyses"`
+			}
+			if err := json.Unmarshal(bodyBytes, &result); err == nil && len(result.Analyses) > 0 {
+				latestAnalysisDate := result.Analyses[0].Date
+				log.Printf("Polling SonarQube: Latest analysis for %s dated %s. Scan submitted around %s.", projectKey, latestAnalysisDate, scanSubmissionTime)
+				// Check if the latest analysis is recent enough
+				if latestAnalysisDate.After(scanSubmissionTime) {
+					log.Printf("SonarQube analysis for projectKey %s appears to be complete.", projectKey)
+					// Add a small extra delay for issues to be fully processed and available via API
+					time.Sleep(5 * time.Second)
+					return nil
+				}
+			} else if err != nil {
+				log.Printf("Error unmarshalling SonarQube analysis status for %s: %v. Body: %s", projectKey, err, string(bodyBytes))
+			} else {
+				log.Printf("SonarQube analysis status for %s: No analyses found yet or empty response. Body: %s", projectKey, string(bodyBytes))
+			}
+		} else {
+			log.Printf("SonarQube analysis status API for %s returned status %d. Body: %s", projectKey, resp.StatusCode, string(bodyBytes))
+		}
+	}
 }

@@ -1,19 +1,19 @@
 import { useMutation } from '@tanstack/react-query';
 
-interface CloneRequest {
+interface ScanRequest {
   repoUrl: string;
 }
 
-interface CloneResponse {
+interface ScanResponse {
   message: string;
   path?: string;
   error?: string;
 }
 
-export const useCloneMutation = () => {
-  return useMutation<CloneResponse, Error, CloneRequest>({
+export const useScanMutation = () => {
+  return useMutation<ScanResponse, Error, ScanRequest>({
     mutationFn: async ({ repoUrl }) => {
-      const response = await fetch('http://localhost:4000/api/clone', {
+      const response = await fetch('http://localhost:4000/api/scan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -24,7 +24,7 @@ export const useCloneMutation = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Clone failed');
+        throw new Error(errorData.error || 'Scan failed');
       }
 
       const xml = await response.text();

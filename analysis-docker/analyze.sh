@@ -7,8 +7,15 @@ if [[ -z "$REPO_URL" ]]; then
   exit 1
 fi
 
+# Check if SONAR_PROJECT_KEY is provided
 if [[ -z "$SONAR_PROJECT_KEY" ]]; then
   echo "Error: SONAR_PROJECT_KEY environment variable not set."
+  exit 1
+fi
+
+# Check if SONAR_TOKEN is provided
+if [[ -z "$SONAR_TOKEN" ]]; then
+  echo "Warning: SONAR_TOKEN environment variable not set."
 fi
 
 WORKDIR="/data/repo"
@@ -20,12 +27,6 @@ mkdir -p "$WORKDIR"
 echo "Cloning repository: $REPO_URL"
 git clone "$REPO_URL" "$WORKDIR"
 
-# --- Add debug lines here ---
-echo "Listing files in /opt/detekt/detekt-cli-1.23.0/bin/:"
-ls -l /opt/detekt/detekt-cli-1.23.0/bin/
-echo "Symlink in /usr/local/bin:"
-ls -l /usr/local/bin/detekt
-
 echo "Running detekt static analysis..."
 detekt --input "$WORKDIR" \
   --report xml:/data/detekt-report.xml \
@@ -35,11 +36,23 @@ detekt --input "$WORKDIR" \
 
 echo "Running SonarScanner analysis..."
 cd "$WORKDIR"
-sonar-scanner \
-  -Dsonar.projectBaseDir="$WORKDIR" \
-  -Dsonar.projectKey="$SONAR_PROJECT_KEY"  \
+
+# Build SonarScanner command dynamically
+SCANNER_CMD="sonar-scanner \
+  -Dsonar.projectBaseDir=$WORKDIR \
+  -Dsonar.projectKey=$SONAR_PROJECT_KEY \
   -Dsonar.sources=. \
-  -Dsonar.host.url=http://host.docker.internal:9000 \
-  || true
+  -Dsonar.host.url=$SONAR_HOST_URL"
+
+if [[ -n "$SONAR_TOKEN" ]]; then
+  SCANNER_CMD="$SCANNER_CMD -Dsonar.token=$SONAR_TOKEN"
+fi
+
+# Optional: uncomment to debug
+# SCANNER_CMD="$SCANNER_CMD -X"
+
+echo "Executing SonarScanner with command:"
+echo "$SCANNER_CMD"
+eval $SCANNER_CMD || true # Do not exit on error for scanner
 
 echo "Analysis finished. Reports should be in /data/"

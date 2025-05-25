@@ -1,5 +1,5 @@
 /* Main Container */
-.clone-container {
+.scan-container {
   display: flex;
   min-height: 100vh;
   width: 100vw;
@@ -7,7 +7,7 @@
 }
 
 /* Sidebar occupies fixed width, content adjusts accordingly */
-.clone-content {
+.scan-content {
   flex: 1;
   padding: 3rem;
   box-sizing: border-box;
@@ -20,7 +20,7 @@
 }
 
 /* Title */
-.clone-title {
+.scan-title {
   font-size: 1.8rem;
   font-weight: bold;
   color: #003366;
@@ -28,14 +28,14 @@
 }
 
 /* Input Container */
-.clone-input-container {
+.scan-input-container {
   display: flex;
   justify-content: center;
   margin-bottom: 1rem;
   width: 100%;
 }
 
-.clone-input {
+.scan-input {
   flex: 1;
   max-width: 600px;
   padding: 0.75rem 1rem;
@@ -45,14 +45,14 @@
   transition: border-color 0.2s;
 }
 
-.clone-input:focus {
+.scan-input:focus {
   outline: none;
   border-color: #3182ce;
   box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
 }
 
 /* Button */
-.clone-button {
+.scan-button {
   display: block;
   margin: 0 auto 1rem auto;
   padding: 0.75rem 1.5rem;
@@ -66,17 +66,17 @@
   transition: background-color 0.2s;
 }
 
-.clone-button:hover {
+.scan-button:hover {
   background-color: #2c5282;
 }
 
-.clone-button:disabled {
+.scan-button:disabled {
   background-color: #a0aec0;
   cursor: not-allowed;
 }
 
 /* Status Message */
-.clone-status {
+.scan-status {
   font-size: 1rem;
   text-align: center;
   padding: 0.75rem;
@@ -84,29 +84,29 @@
   width: 100%;
 }
 
-.clone-status.success {
+.scan-status.success {
   background-color: rgba(72, 187, 120, 0.1);
   color: #48bb78;
 }
 
-.clone-status.error {
+.scan-status.error {
   background-color: rgba(245, 101, 101, 0.1);
   color: #f56565;
 }
 
 /* Responsive Breakpoints */
 @media (max-width: 768px) {
-  .clone-content {
+  .scan-content {
     padding: 1.5rem;
   }
 }
 
 @media (max-width: 480px) {
-  .clone-content {
+  .scan-content {
     padding: 1rem;
   }
 
-  .clone-title {
+  .scan-title {
     font-size: 1.5rem;
   }
 }

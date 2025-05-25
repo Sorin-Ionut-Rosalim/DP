@@ -155,7 +155,7 @@ const Profile: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="no-projects-message">No projects found. Go to "Clone" to scan your first repository.</div>
+                  <div className="no-projects-message">No projects found. Go to "Scan" to scan your first repository.</div>
                 )}
               </>
             )}
