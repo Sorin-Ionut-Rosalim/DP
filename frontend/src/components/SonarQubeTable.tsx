@@ -19,12 +19,12 @@ const SonarQubeTable: React.FC<SonarQubeTableProps> = ({ sonarData }) => {
     const getFileName = (componentPath: string): string => {
         if (!componentPath) return 'N/A';
         const parts = componentPath.split(':');
-        return parts.pop() || componentPath; // Returns the last part (filename) or the full path if no ':'
+        return parts.pop() || componentPath;
     };
 
     return (
         <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
-            <table className="sonarqube-table"> {/* Use a distinct class name */}
+            <table className="sonarqube-table">
                 <thead>
                     <tr>
                         <th>Severity</th>
@@ -39,13 +39,13 @@ const SonarQubeTable: React.FC<SonarQubeTableProps> = ({ sonarData }) => {
                 <tbody>
                     {sonarData.issues.map((issue: SonarQubeIssue) => (
                         <tr key={issue.key}>
-                            <td>{issue.severity}</td>
-                            <td>{issue.type}</td>
-                            <td>{issue.rule}</td>
-                            <td style={{ whiteSpace: 'pre-wrap', minWidth: '300px' }}>{issue.message}</td>
-                            <td style={{ wordBreak: 'break-all' }}>{getFileName(issue.component)}</td>
-                            <td>{issue.line || 'N/A'}</td>
-                            <td>{issue.status}</td>
+                        <td>{issue.severity}</td>
+                        <td>{issue.type}</td>
+                        <td>{issue.rule}</td>
+                        <td style={{ whiteSpace: 'pre-wrap', minWidth: '300px' }}>{issue.message}</td>
+                        <td style={{ wordBreak: 'break-all' }}>{getFileName(issue.component)}</td>
+                        <td>{issue.line || 'N/A'}</td>
+                        <td>{issue.status}</td>
                         </tr>
                     ))}
                 </tbody>

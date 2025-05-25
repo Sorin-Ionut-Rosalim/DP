@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from "../components/Sidebar";
-import './Profile.css'; // Ensure your CSS handles new states if needed
+import './Profile.css';
 import { useProfileQuery } from '../hooks/useProfileQuery';
-import { useProjectQuery, Project } from '../hooks/useProjectQuery'; // Removed ProjectsResponse as it's used internally in useProjectQuery
-import { useProjectScanQuery, Scan } from '../hooks/useProjectScanQuery'; // Assuming Scan type is exported
+import { useProjectQuery, Project } from '../hooks/useProjectQuery'; 
+import { useProjectScanQuery, Scan } from '../hooks/useProjectScanQuery';
 import { useScanXMLQuery } from '../hooks/useScanXMLQuery';
 import DetektTable from '../components/DetektTable';
-import { useSonarQubeQuery, SonarQubeApiResponse } from '../hooks/useSonarQubeQuery'; // Check path
-import SonarQubeTable from '../components/SonarQubeTable'; // Check path
+import { useSonarQubeQuery } from '../hooks/useSonarQubeQuery';
+import SonarQubeTable from '../components/SonarQubeTable';
 
 const Profile: React.FC = () => {
   const { data: user, error: profileError, isLoading: profileLoading } = useProfileQuery();
@@ -45,11 +45,13 @@ const Profile: React.FC = () => {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
+        timeZone: "UTC",
       }).format(new Date(dateString)) + " UTC";
     } catch {
       return dateString;
     }
   }
+
   // useEffect(() => {
   //   console.log("[Profile] Profile Query:", { isLoading: profileLoading, error: profileError, data: user });
   //   console.log("[Profile] Projects Query:", { isLoading: projectsLoading, error: projectsError, data: projectsData });

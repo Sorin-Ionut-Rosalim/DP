@@ -3,12 +3,14 @@ import Sidebar from "../components/Sidebar";
 import { useScanMutation } from "../hooks/useScanMutation";
 import "./Scan.css";
 import DetektTable from "../components/DetektTable";
+import SonarQubeTable from "../components/SonarQubeTable";
 
 const Scan: React.FC = () => {
   const [repoUrl, setRepoUrl] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [detektXML, setDetektXML] = useState<string | null>(null);
+  const [sonarQubeData, setSonarQubeData] = useState<any>(null);
 
   // Destructure the mutation result
   const { mutateAsync, status } = useScanMutation();
@@ -44,10 +46,25 @@ const Scan: React.FC = () => {
     }
     setStatusMessage(null);
     setDetektXML(null);
+    setSonarQubeData(null);
+
     try {
-      const { message } = await mutateAsync({ repoUrl });
+      const { scanId } = await mutateAsync({ repoUrl });
       setStatusMessage("✅ Scan complete!");
-      setDetektXML(message);
+      // Fetch Detekt XML
+      const detektRes = await fetch(`http://localhost:4000/api/scan/${scanId}/detekt`, {
+        credentials: "include",
+        headers: { Accept: "application/xml" },
+      });
+      setDetektXML(await detektRes.text());
+
+      // Fetch SonarQube JSON
+      const sonarRes = await fetch(`http://localhost:4000/api/scan/${scanId}/sonarqube`, { credentials: "include" });
+      if (sonarRes.ok) {
+        setSonarQubeData(await sonarRes.json());
+      } else {
+        setSonarQubeData(null);
+      }
     } catch (err) {
       setStatusMessage(`❌ ${err instanceof Error ? err.message : "Scan failed"}`);
     }
@@ -58,7 +75,6 @@ const Scan: React.FC = () => {
       <Sidebar />
       <div className="scan-content">
         <h1 className="scan-title">Scan a Repository</h1>
-
         <div className="scan-input-container">
           <input
             type="text"
@@ -69,10 +85,10 @@ const Scan: React.FC = () => {
               setRepoUrl(e.target.value);
               setStatusMessage(null);
               setDetektXML(null);
+              setSonarQubeData(null);
             }}
           />
         </div>
-
         <button
           className="scan-button"
           onClick={handleScan}
@@ -83,6 +99,7 @@ const Scan: React.FC = () => {
         {status === "pending" && <div className="spinner">⏳ Scanning, please wait...</div>}
         {statusMessage && <p className="scan-status">{statusMessage}</p>}
         {detektXML && <DetektTable xml={detektXML} />}
+        {sonarQubeData && <SonarQubeTable sonarData={sonarQubeData} />}
       </div>
     </div>
   );

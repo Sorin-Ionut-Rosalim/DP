@@ -5,8 +5,7 @@ interface ScanRequest {
 }
 
 interface ScanResponse {
-  message: string;
-  path?: string;
+  scanId: string;
   error?: string;
 }
 
@@ -23,12 +22,18 @@ export const useScanMutation = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = {};
+        }
         throw new Error(errorData.error || 'Scan failed');
       }
 
-      const xml = await response.text();
-      return { message: xml };
+      const data = await response.json();
+      if (!data.scanId) throw new Error("No scanId returned from scan API");
+      return { scanId: data.scanId };
     },
   });
 };
