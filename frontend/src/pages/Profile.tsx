@@ -87,11 +87,13 @@ const Profile: React.FC = () => {
     <div className="profile-container">
       <Sidebar />
       <div className="profile-content">
-        {/* User Info Card */}
+        {/* User Info Grid */}
         <div className="profile-card">
           <div className="user-info-grid">
-            <div className="info-item"><span className="info-label">User ID</span><span className="info-value">{user.id}</span></div>
-            <div className="info-item"><span className="info-label">Username</span><span className="info-value">{user.username}</span></div>
+            <div className="info-item">
+              <span className="info-label">Username</span>
+              <span className="info-value">{user.username}</span>
+            </div>
             <div className="info-item">
               <span className="info-label">Projects with Scans</span>
               {projectsLoading ? <span className="info-value">Loading...</span> :
@@ -101,6 +103,7 @@ const Profile: React.FC = () => {
             </div>
           </div>
         </div>
+
         {/* Project History */}
         <div className="project-history-card">
           <h2>Project History</h2>
@@ -187,7 +190,7 @@ const Profile: React.FC = () => {
           </div>
         )}
 
-        {/* Detekt Results */}
+        {/* Results Cards */}
         {selectedScanId && !scansError && (
           <>
             <div className="results-card">

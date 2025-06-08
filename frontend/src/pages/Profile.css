@@ -21,61 +21,58 @@
   width: 100%;
   max-width: 800px;
   background: white;
-  border-radius: 12px;
-  padding: 2.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: 2.1rem 1.3rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  display: flex;
+  justify-content: center;
 }
 
-.profile-title {
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: #003366;
-  margin-bottom: 1.5rem;
+.user-info-grid {
+  display: flex;
+  gap: 1.7rem;
+  width: 100%;
+  justify-content: center;
 }
 
-.profile-info {
-  text-align: left;
+.info-item {
+  background: #f8fbff;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,68,255,0.04);
+  padding: 1.2rem 2rem;
+  flex: 1 1 0;
+  min-width: 160px;
+  border-left: 3px solid #377cfb;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-.profile-info p {
-  font-size: 1rem;
-  color: #555;
-  margin: 1rem 0;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #eee;
+.info-label {
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  color: #829bb8;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.3rem;
 }
 
-.profile-info strong {
-  color: #333;
-  min-width: 100px;
-  display: inline-block;
+.info-value {
+  font-size: 1.22rem;
+  color: #222;
+  font-weight: 700;
+  margin-top: 0.18rem;
+  word-break: break-word;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .profile-content {
-    margin-left: 200px;
-    padding: 1.5rem;
+/* Responsive Design for Info Cards */
+@media (max-width: 900px) {
+  .user-info-grid {
+    flex-direction: column;
+    gap: 1.2rem;
   }
-  
-  .profile-card {
-    padding: 2rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .profile-content {
-    margin-left: 0;
-    padding: 1rem;
-  }
-  
-  .profile-card {
-    width: 95%;
-    padding: 1.5rem;
-  }
-  
-  .profile-title {
-    font-size: 1.5rem;
+  .info-item {
+    padding: 1.1rem 1.4rem;
   }
 }
 
@@ -216,6 +213,7 @@
   margin-left: 0.35em;
 }
 
+/* --- Results Cards and Tables --- */
 .results-card {
   background: #fff;
   border-radius: 16px;
@@ -284,6 +282,7 @@
   background: #eaf2f8;
 }
 
+/* Responsive tweaks for tables and cards */
 @media (max-width: 1100px) {
   .results-card {
     max-width: 98vw;

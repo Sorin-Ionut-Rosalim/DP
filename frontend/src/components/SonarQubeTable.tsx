@@ -22,7 +22,7 @@ const SonarQubeTable: React.FC<SonarQubeTableProps> = ({ sonarData }) => {
   };
 
   return (
-    <div className="results-card" style={{ marginTop: 0 }}>
+    <div style={{ marginTop: 0 }}>
       <table className="results-table">
         <thead>
           <tr>
