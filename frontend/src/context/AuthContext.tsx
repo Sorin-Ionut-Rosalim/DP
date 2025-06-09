@@ -1,11 +1,9 @@
-import React, { createContext, useState, useEffect, useCallback, useContext} from 'react';
+import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  setIsAuthenticated:  (value: boolean) => void;
+  setIsAuthenticated: (value: boolean) => void;
   isLoading: boolean;
-  checkSession: () => Promise<void>;
-  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -15,49 +13,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const checkSession = useCallback(async () => {
-    setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/verify', {
+      const response = await fetch('http://localhost:4000/api/profile', {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
-      // Defensive: Check content type first
-      const contentType = response.headers.get("Content-Type");
-      if (!response.ok) {
+      if (response.ok) {
+        setIsAuthenticated(true);
+      } else {
         setIsAuthenticated(false);
-        setIsLoading(false);
-        return; // or throw if you want to catch below
       }
-
-      if (!contentType || !contentType.includes("application/json")) {
-        // Got HTML (e.g., login page or error)
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-      setIsAuthenticated(data.isAuthenticated ?? false);
     } catch (error) {
-      console.error('Session verification failed:', error);
+      console.error('Session verification request failed:', error);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
-    }
-  }, []);
-
-  const logout = useCallback(async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      setIsAuthenticated(false);
-    } catch (error) {
-      console.error('Logout failed:', error);
     }
   }, []);
 
@@ -66,13 +36,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [checkSession]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, isLoading, checkSession, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook for easier consumption
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {

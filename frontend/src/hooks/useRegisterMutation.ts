@@ -2,18 +2,18 @@ import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 
-// 1) Define the request body (variables) and response types
+// Define the structure for the registration request
 interface RegisterVariables {
     username: string;
     password: string;
-  }
-  
-  
+}
+
+// Define the expected response schema from the server
 const registerResponseSchema = z.object({
     message: z.string(),
 });
 
-// 2) The actual fetch call
+// The async function that performs the API call
 async function registerUser({ username, password }: RegisterVariables) {
     const response = await fetch('http://localhost:4000/api/register', {
         method: 'POST',
@@ -23,25 +23,32 @@ async function registerUser({ username, password }: RegisterVariables) {
     });
 
     if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || data.message || 'Registration failed.');
+        // Parse the error message from the server's JSON response
+        const errorData = await response.json();
+        // Throw an error that the mutation hook can catch
+        throw new Error(errorData.error || 'Registration failed due to an unknown error.');
+    }
+
+    return registerResponseSchema.parse(await response.json());
 }
 
-// success
-return registerResponseSchema.parse(await response.json());
-}
-
-// 3) The mutation hook
-export function useRegisterMutation(){
+/**
+ * A custom TanStack Query mutation hook for handling user registration.
+ * On success, it automatically navigates the user to the login page.
+ * It provides loading and error states to the component using it.
+ */
+export function useRegisterMutation() {
     const navigate = useNavigate();
-    
-    return useMutation({
+
+    return useMutation<unknown, Error, RegisterVariables>({
         mutationFn: registerUser,
         onSuccess: () => {
+            // On successful registration, redirect to the login page
             navigate('/login');
         },
         onError: (err) => {
-            console.error('Register error:', err.message);
+            // Log the full error for debugging, but the component will show err.message
+            console.error('Register mutation error:', err);
         },
     });
 }

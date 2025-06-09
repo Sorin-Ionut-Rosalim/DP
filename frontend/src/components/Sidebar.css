@@ -1,85 +1,164 @@
-/* Sidebar Styling */
+/* Sidebar container */
 .sidebar {
-  width: 250px;
-  background-color: #f4f4f4;
-  padding: 1.5rem;
-  box-sizing: border-box;
-  min-height: 100vh;
-  position: fixed;
-  left: 0;
-  top: 0;
-  display: flex;
-  flex-direction: column;
+    width: 250px;
+    background-color: #003366; /* Main brand color */
+    color: #e3f2fd;
+    padding: 1.5rem 1rem;
+    box-sizing: border-box;
+    min-height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Pushes footer to the bottom */
+    transition: width 0.3s ease;
 }
 
-/* Sidebar Title */
+/* Sidebar header/logo */
+.sidebar-header {
+    text-align: center;
+    padding: 0.5rem 0 2rem 0;
+}
+
 .sidebar-title {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #555;
-  margin-bottom: 1rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: 1px;
 }
 
-/* Sidebar List */
-.sidebar-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+/* Navigation list */
+.sidebar-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
-.sidebar-list li {
-  margin: 0.75rem 0;
-}
-
+/* Individual navigation links */
 .sidebar-link {
-  text-decoration: none;
-  color: #333;
-  font-size: 1rem;
-  font-weight: 500;
-  display: block;
-  padding: 0.5rem;
-  transition: background 0.3s, color 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #e3f2fd;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    border-left: 4px solid transparent;
 }
 
 .sidebar-link:hover {
-  background: #ddd;
-  border-radius: 5px;
-  padding-left: 1rem;
+    background-color: #004488; /* Slightly lighter shade for hover */
+    color: #fff;
 }
 
-/* Logout Button */
+.sidebar-link.active {
+    background-color: #002244; /* Darker shade for active */
+    color: #fff;
+    font-weight: 600;
+    border-left: 4px solid #64b5f6; /* Accent color for active state */
+}
+
+.sidebar-link svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0; /* Prevents icons from shrinking */
+}
+
+/* Footer area for logout button */
+.sidebar-footer {
+    padding-top: 1rem;
+    border-top: 1px solid #004488;
+}
+
 .sidebar-logout-button {
-  border: none;
-  background: none;
-  color: #ff0000;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: bold;
-  padding: 0.5rem;
-  width: 100%;
-  text-align: left;
-  transition: color 0.3s, background 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.85rem 1rem;
+    border: none;
+    background: none;
+    color: #ffcdd2; /* Light red for contrast */
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .sidebar-logout-button:hover {
-  color: #fff;
-  background: #ff0000;
-  border-radius: 5px;
+    background-color: #d32f2f; /* Red background on hover */
+    color: #fff;
+}
+
+.sidebar-logout-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
-  .sidebar {
-    width: 200px;
-    padding: 1rem;
-  }
+@media (max-width: 992px) {
+    .sidebar {
+        width: 220px;
+    }
 }
 
-@media (max-width: 480px) {
-  .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-    min-height: auto;
-  }
+@media (max-width: 768px) {
+    .sidebar {
+        /* When screen is small, make sidebar take full width and stack on top */
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        position: relative;
+        flex-direction: row;
+        align-items: center;
+        padding: 0.5rem 1rem;
+    }
+
+    .sidebar > div {
+        display: flex;
+        align-items: center;
+    }
+
+    .sidebar-header {
+        padding: 0.5rem;
+    }
+    .sidebar-title {
+        font-size: 1.2rem;
+    }
+
+    .sidebar-nav ul {
+        display: flex;
+    }
+    
+    .sidebar-link {
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+    }
+
+    /* Hide text labels on mobile, show only icons */
+    .sidebar-link span {
+        display: none;
+    }
+
+    .sidebar-footer {
+        border-top: none;
+        padding-top: 0;
+        margin-left: auto; /* Push logout to the far right */
+    }
+
+    .sidebar-logout-button {
+        padding: 0.5rem;
+    }
+
+    .sidebar-logout-button span {
+       display: none;
+    }
 }

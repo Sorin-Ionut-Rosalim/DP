@@ -1,52 +1,204 @@
-import React from 'react';
-import { SonarQubeApiResponse, SonarQubeIssue } from '../hooks/useSonarQubeQuery';
+import React, { useState, useMemo } from "react";
+import "./Table.css";
 
-interface SonarQubeTableProps {
-  sonarData: SonarQubeApiResponse | undefined;
+// Define SonarQube issue structure
+interface SonarQubeIssue {
+  component: string;
+  line?: number;
+  message: string;
+  rule: string;
+  severity: string;
+  type: string;
 }
 
-const SonarQubeTable: React.FC<SonarQubeTableProps> = ({ sonarData }) => {
-  if (!sonarData) {
-    return <div>Loading SonarQube data or data not available...</div>;
-  }
+interface SonarQubeTableProps {
+  sonarData: {
+    issues: SonarQubeIssue[];
+  };
+}
 
-  if (!sonarData.issues || sonarData.issues.length === 0) {
-    return <div>No SonarQube issues found for this analysis.</div>;
-  }
+const SonarQubeTable: React.FC<SonarQubeTableProps> = ({
+  sonarData,
+}) => {
+  const issues = sonarData.issues || [];
 
-  // Extract file path from component string
-  const getFileName = (componentPath: string): string => {
-    if (!componentPath) return 'N/A';
-    const parts = componentPath.split(':');
-    return parts.length > 1 ? parts.slice(1).join(':') : componentPath;
+  // State for sorting, searching, and filtering
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof SonarQubeIssue;
+    direction: "ascending" | "descending";
+  } | null>({ key: "severity", direction: "ascending" });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterSeverity, setFilterSeverity] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+
+  // Apply search, filter, and sort
+  const filteredAndSortedIssues = useMemo(() => {
+    let sortableIssues = [...issues];
+
+    // Filtering
+    if (filterSeverity !== "all") {
+      sortableIssues = sortableIssues.filter(
+        (issue) => issue.severity.toLowerCase() === filterSeverity.toLowerCase()
+      );
+    }
+    if (filterType !== "all") {
+      sortableIssues = sortableIssues.filter(
+        (issue) => issue.type.toLowerCase() === filterType.toLowerCase()
+      );
+    }
+
+    // Searching
+    if (searchTerm) {
+      const lowercasedTerm = searchTerm.toLowerCase();
+      sortableIssues = sortableIssues.filter(
+        (issue) =>
+          issue.message.toLowerCase().includes(lowercasedTerm) ||
+          issue.component.toLowerCase().includes(lowercasedTerm) ||
+          issue.rule.toLowerCase().includes(lowercasedTerm)
+      );
+    }
+
+    // Sorting
+    if (sortConfig !== null) {
+      sortableIssues.sort((a, b) => {
+        const aValue = a[sortConfig.key] || "";
+        const bValue = b[sortConfig.key] || "";
+        if (aValue < bValue)
+          return sortConfig.direction === "ascending" ? -1 : 1;
+        if (aValue > bValue)
+          return sortConfig.direction === "ascending" ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableIssues;
+  }, [issues, searchTerm, filterSeverity, filterType, sortConfig]);
+
+  // Handle sort request
+  const requestSort = (key: keyof SonarQubeIssue) => {
+    let direction: "ascending" | "descending" = "ascending";
+    if (sortConfig?.key === key && sortConfig.direction === "ascending") {
+      direction = "descending";
+    }
+    setSortConfig({ key, direction });
   };
 
+  const getSortClassName = (key: keyof SonarQubeIssue) => {
+    if (!sortConfig) return "";
+    return sortConfig.key === key ? sortConfig.direction : "";
+  };
+
+  const severities = useMemo(
+    () => [
+      "all",
+      ...Array.from(new Set(issues.map((i) => i.severity.toLowerCase()))),
+    ],
+    [issues]
+  );
+  const types = useMemo(
+    () => [
+      "all",
+      ...Array.from(new Set(issues.map((i) => i.type.toLowerCase()))),
+    ],
+    [issues]
+  );
+
+  const tableHeaders: { key: keyof SonarQubeIssue; label: string }[] = [
+    { key: "component", label: "File" },
+    { key: "line", label: "Line" },
+    { key: "type", label: "Type" },
+    { key: "rule", label: "Rule" },
+    { key: "severity", label: "Severity" },
+    { key: "message", label: "Message" },
+  ];
+
   return (
-    <div style={{ marginTop: 0 }}>
-      <table className="results-table">
-        <thead>
-          <tr>
-            <th style={{ minWidth: 210 }}>File</th>
-            <th style={{ minWidth: 55 }}>Line</th>
-            <th style={{ minWidth: 120 }}>Rule</th>
-            <th style={{ minWidth: 85 }}>Severity</th>
-            <th style={{ minWidth: 85 }}>Type</th>
-            <th style={{ minWidth: 220 }}>Message</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sonarData.issues.map((issue: SonarQubeIssue, idx: number) => (
-            <tr key={issue.key || idx}>
-              <td style={{ wordBreak: 'break-all' }}>{getFileName(issue.component)}</td>
-              <td>{issue.line || ''}</td>
-              <td>{issue.rule}</td>
-              <td>{issue.severity}</td>
-              <td>{issue.type}</td>
-              <td style={{ whiteSpace: 'pre-wrap', minWidth: 220 }}>{issue.message}</td>
+    <div className="enhanced-table-container">
+      <div className="table-controls">
+        <input
+          type="text"
+          placeholder="Search issues..."
+          className="search-input"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <div className="filter-container">
+          <label htmlFor="sonar-severity-filter">Severity:</label>
+          <select
+            id="sonar-severity-filter"
+            className="filter-select"
+            value={filterSeverity}
+            onChange={(e) => setFilterSeverity(e.target.value)}
+          >
+            {severities.map((s) => (
+              <option key={s} value={s}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-container">
+          <label htmlFor="sonar-type-filter">Type:</label>
+          <select
+            id="sonar-type-filter"
+            className="filter-select"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+          >
+            {types.map((t) => (
+              <option key={t} value={t}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="table-wrapper">
+        <table className="enhanced-table">
+          <thead>
+            <tr>
+              {tableHeaders.map(({ key, label }) => (
+                <th
+                  key={key}
+                  onClick={() => requestSort(key)}
+                  className={getSortClassName(key)}
+                >
+                  {label}
+                  <span className="sort-indicator"></span>
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredAndSortedIssues.length > 0 ? (
+              filteredAndSortedIssues.map((issue, index) => (
+                <tr key={index}>
+                  <td data-label="Component" title={issue.component}>
+                    {issue.component.split(":").pop()}
+                  </td>
+                  <td data-label="Line">{issue.line || "N/A"}</td>
+                  <td data-label="Type">{issue.type}</td>
+                  <td data-label="Rule">{issue.rule}</td>
+                  <td data-label="Severity">
+                    <span
+                      className={`severity-badge severity-${issue.severity.toLowerCase()}`}
+                    >
+                      {issue.severity}
+                    </span>
+                  </td>
+                  <td data-label="Message">{issue.message}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={tableHeaders.length} className="no-results">
+                  No issues found matching your criteria.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
