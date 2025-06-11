@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import "./Portfolio.css";
 import { useProfileQuery } from "../hooks/useProfileQuery";
@@ -11,6 +12,9 @@ import SonarQubeTable from "../components/SonarQubeTable";
 import AnalyticsTab from "../components/AnalyticsTab";
 
 const Portfolio: React.FC = () => {
+  const location = useLocation();
+  const defaultProjectId = location.state?.defaultProjectId;
+
   // Data fetching hooks
   const {
     data: user,
@@ -26,13 +30,13 @@ const Portfolio: React.FC = () => {
   // State management
   const [activeTab, setActiveTab] = useState<
     "projects" | "scans" | "reports" | "analytics"
-  >("projects");
+  >(defaultProjectId ? "scans" : "projects");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    null
+    defaultProjectId || null
   );
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
 
-  // Auto-select the first project when data loads
+  // Auto-select the first project when data loads and none is pre-selected
   useEffect(() => {
     if (
       !selectedProjectId &&
@@ -60,20 +64,18 @@ const Portfolio: React.FC = () => {
     error: sonarQubeError,
   } = useSonarQubeQuery(selectedScanId);
 
-  // Helper function to format dates
-  function formatUtcDate(dateString: string | null | undefined): string {
+  // Helper function to format dates to the user's local timezone
+  function formatDate(dateString: string | null | undefined): string {
     if (!dateString) return "N/A";
     try {
-      return (
-        new Intl.DateTimeFormat(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "UTC",
-        }).format(new Date(dateString)) + " UTC"
-      );
+      return new Intl.DateTimeFormat(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }).format(new Date(dateString));
     } catch {
       return dateString;
     }
@@ -194,7 +196,7 @@ const Portfolio: React.FC = () => {
                         </p>
                         <p>
                           <strong>Last Scan:</strong>{" "}
-                          {formatUtcDate(proj.lastScan)}
+                          {formatDate(proj.lastScan)}
                         </p>
                       </div>
                       <div className="repo-card-actions">
@@ -241,7 +243,7 @@ const Portfolio: React.FC = () => {
                       {scansData.scans.map((scan: Scan) => (
                         <div className="scan-item" key={scan.id}>
                           <span data-label="Date">
-                            {formatUtcDate(scan.detectedAt)}
+                            {formatDate(scan.detectedAt)}
                           </span>
                           <span
                             data-label="Sonar Issues"

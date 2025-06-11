@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import "./Home.css";
 import { useProfileQuery } from "../hooks/useProfileQuery";
@@ -57,6 +57,7 @@ const ClockIcon = () => (
 );
 
 const Home: React.FC = () => {
+  const navigate = useNavigate();
   const {
     data: user,
     isLoading: profileLoading,
@@ -93,11 +94,15 @@ const Home: React.FC = () => {
           new Date(b.lastScan || 0).getTime() -
           new Date(a.lastScan || 0).getTime()
       )
-      .slice(0, 5);
+      .slice(0, 7);
   }, [projectsData]);
 
   const isLoading = profileLoading || projectsLoading;
   const error = profileError || projectsError;
+
+  const handleViewProject = (projectId: string) => {
+    navigate('/portfolio', { state: { defaultProjectId: projectId } });
+  };
 
   if (isLoading) {
     return (
@@ -208,9 +213,9 @@ const Home: React.FC = () => {
                         : "Never scanned"}
                     </span>
                   </div>
-                  <Link to="/portfolio" className="activity-link">
+                  <button onClick={() => handleViewProject(project.id)} className="activity-link">
                     View
-                  </Link>
+                  </button>
                 </li>
               ))}
             </ul>

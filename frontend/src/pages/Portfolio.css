@@ -133,6 +133,9 @@
 
 .repo-card-body p {
   margin: 0 0 1rem 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .repo-card-actions {
