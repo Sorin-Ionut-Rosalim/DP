@@ -535,7 +535,7 @@ func runAnalysisContainerAndFetchResults(repoURL, sonarProjectKey, scanID string
 	}
 
 	log.Printf("Waiting for SonarQube to process analysis for %s...", sonarProjectKey)
-	if err := waitForSonarQubeAnalysis(sonarProjectKey, sonarHostURL, apiToken, 90*time.Second); err != nil {
+	if err := waitForSonarQubeAnalysis(sonarProjectKey, scanID, sonarHostURL, apiToken, 300*time.Second); err != nil {
 		log.Printf("Warning: %v", err)
 	}
 
@@ -594,17 +594,24 @@ func fetchSonarQubeAPI(projectKey, sonarHostURL, sonarToken, endpoint string) (s
 	return string(bodyBytes), nil
 }
 
-func waitForSonarQubeAnalysis(projectKey, sonarHostURL, sonarToken string, timeout time.Duration) error {
+func waitForSonarQubeAnalysis(projectKey, scanID, sonarHostURL, sonarToken string, timeout time.Duration) error {
 	sonarHostURL = strings.TrimSuffix(sonarHostURL, "/")
+	// Fetch the latest analysis for the project
 	apiURL := fmt.Sprintf("%s/api/project_analyses/search?project=%s&ps=1", sonarHostURL, projectKey)
 	start := time.Now()
 
 	for {
 		if time.Since(start) > timeout {
-			return fmt.Errorf("timed out waiting for SonarQube analysis")
+			return fmt.Errorf("timed out waiting for SonarQube analysis for version %s", scanID)
 		}
 
-		req, _ := http.NewRequest("GET", apiURL, nil)
+		req, err := http.NewRequest("GET", apiURL, nil)
+		if err != nil {
+			log.Printf("waitForSonarQubeAnalysis: could not create request: %v, retrying...", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
 		if sonarToken != "" {
 			req.SetBasicAuth(sonarToken, "")
 		}
@@ -612,32 +619,45 @@ func waitForSonarQubeAnalysis(projectKey, sonarHostURL, sonarToken string, timeo
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Printf("waitForSonarQubeAnalysis: http error: %v, retrying...", err)
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 
 		if resp.StatusCode == http.StatusOK {
 			var body struct {
 				Analyses []struct {
-					Date time.Time `json:"date"`
+					Version string `json:"projectVersion"`
 				} `json:"analyses"`
 			}
-			data, _ := io.ReadAll(resp.Body)
-			json.Unmarshal(data, &body)
-			resp.Body.Close()
+			data, readErr := io.ReadAll(resp.Body)
+			if readErr != nil {
+				resp.Body.Close()
+				log.Printf("waitForSonarQubeAnalysis: failed to read body: %v, retrying...", readErr)
+				time.Sleep(10 * time.Second)
+				continue
+			}
+
+			if err := json.Unmarshal(data, &body); err != nil {
+				resp.Body.Close()
+				log.Printf("waitForSonarQubeAnalysis: failed to unmarshal json: %v, retrying...", err)
+				time.Sleep(10 * time.Second)
+				continue
+			}
 
 			if len(body.Analyses) > 0 {
-				if body.Analyses[0].Date.After(start.Add(-15 * time.Second)) {
-					log.Printf("SonarQube analysis for %s detected.", projectKey)
+				// Check if the version of the latest analysis matches our current scanID
+				if body.Analyses[0].Version == scanID {
+					log.Printf("SonarQube analysis for version %s detected.", scanID)
+					resp.Body.Close()
 					return nil
 				}
 			}
-		} else {
-			resp.Body.Close()
 		}
 
-		log.Printf("Waiting for new analysis for %s...", projectKey)
-		time.Sleep(5 * time.Second)
+		resp.Body.Close()
+
+		log.Printf("Waiting for SonarQube analysis for project %s with version %s...", projectKey, scanID)
+		time.Sleep(10 * time.Second)
 	}
 }
 

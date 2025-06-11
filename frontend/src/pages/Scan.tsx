@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useScanMutation } from "../hooks/useScanMutation";
@@ -33,13 +33,16 @@ const Scan: React.FC = () => {
 
   const { mutateAsync, isPending, error } = useScanMutation();
 
-  const startScan = async (urlToScan: string) => {
+  const initialScanStartedRef = useRef(false);
+
+  const startScan = useCallback(async (urlToScan: string) => {
     if (!urlToScan.trim() || isPending) return;
 
     setDetektXML(null);
     setSonarQubeData(null);
 
     try {
+      // Initiate the scan via the mutation hook.
       const { scanId } = await mutateAsync({ repoUrl: urlToScan });
 
       try {
@@ -59,6 +62,7 @@ const Scan: React.FC = () => {
         console.error("Error fetching Detekt results:", detektError);
       }
 
+      // Fetch SonarQube results
       try {
         const sonarRes = await fetch(
           `http://localhost:4000/api/scan/${scanId}/sonarqube`,
@@ -78,18 +82,22 @@ const Scan: React.FC = () => {
     } catch (mutationError) {
       console.error("Scan mutation failed:", mutationError);
     }
-  };
+  }, [isPending, mutateAsync]);
 
   // Effect to automatically start a scan if a repoUrl is passed in the navigation state.
   useEffect(() => {
     const urlFromState = location.state?.repoUrl;
-    if (urlFromState) {
-      // Clear the state to prevent re-scanning on refresh
+    // Only run if a URL is passed and the initial scan ref is false.
+    if (urlFromState && !initialScanStartedRef.current) {
+      // Set the ref to true immediately to prevent re-runs.
+      initialScanStartedRef.current = true;
+      // Clear the state from history to prevent re-scanning on refresh.
       window.history.replaceState({}, document.title);
       startScan(urlFromState);
     }
-  }, [location.state?.repoUrl]);
+  }, [location.state?.repoUrl, startScan]); // Dependency on the memoized startScan
 
+  // Handler for the form submission.
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     startScan(repoUrl);
