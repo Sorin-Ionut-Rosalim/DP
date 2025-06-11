@@ -4,6 +4,8 @@ import { z } from 'zod';
 const scanSchema = z.object({
   id: z.string().uuid({ message: "Invalid scan ID format (must be UUID)" }),
   detectedAt: z.string().datetime({ offset: true, message: "Invalid scan detectedAt date format (ISO 8601 with offset)" }),
+  detekt_issue_count: z.number({message: "Invalid detekt_issue_count"}),
+  sonar_issue_count: z.number({message: "Invalid sonar_issue_count"})
 });
 
 const scansResponseSchema = z.object({
@@ -45,9 +47,7 @@ async function fetchScans(projectId: string | null): Promise<ScansResponse> {
 
   try {
     const data = JSON.parse(responseBodyText);
-    console.log('[useProjectScanQuery] API Response:', data);
     const parsedData = scansResponseSchema.parse(data);
-    console.log('[useProjectScanQuery] Parsed scans:', parsedData.scans.length);
     return parsedData;
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -62,7 +62,7 @@ export function useProjectScanQuery(projectId: string | null) {
   return useQuery<ScansResponse, Error>({
     queryKey: ['projectScans', projectId],
     queryFn: () => fetchScans(projectId),
-    enabled: !!projectId, // Only run if projectId exists
+    enabled: !!projectId, 
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });

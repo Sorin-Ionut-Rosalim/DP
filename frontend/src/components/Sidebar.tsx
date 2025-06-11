@@ -117,13 +117,13 @@ const Sidebar: React.FC = () => {
             </li>
             <li>
               <NavLink
-                to="/profile"
+                to="/portfolio"
                 className={({ isActive }) =>
                   "sidebar-link" + (isActive ? " active" : "")
                 }
               >
                 <ProfileIcon />
-                <span>Profile</span>
+                <span>Portfolio</span>
               </NavLink>
             </li>
             <li>

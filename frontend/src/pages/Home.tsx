@@ -180,7 +180,7 @@ const Home: React.FC = () => {
               <ScanIcon />
               Start a New Scan
             </Link>
-            <Link to="/profile" className="action-button">
+            <Link to="/portfolio" className="action-button">
               View All Reports
             </Link>
           </div>
@@ -206,7 +206,7 @@ const Home: React.FC = () => {
                         : "Never scanned"}
                     </span>
                   </div>
-                  <Link to="/profile" className="activity-link">
+                  <Link to="/portfolio" className="activity-link">
                     View
                   </Link>
                 </li>

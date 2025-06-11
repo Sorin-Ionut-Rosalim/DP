@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 
-// --- Zod Schemas and Types (assuming these are correct as per previous discussion) ---
 const projectSchema = z.object({
   id: z.string().uuid({ message: "Invalid project ID format (must be a UUID)" }),
   lastScan: z.string().datetime({ offset: true, message: "Invalid lastScan date format (must be ISO 8601 with offset)" }).nullable(),
@@ -20,10 +19,10 @@ export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
 
 async function fetchProjects(): Promise<ProjectsResponse> {
   const projectsApiUrl = `http://localhost:4000/api/projects`;
-  console.log(`[useProjectQuery] Attempting to fetch ${projectsApiUrl}...`); // Log the full URL
+  console.log(`[useProjectQuery] Attempting to fetch ${projectsApiUrl}...`);
 
-  const response = await fetch(projectsApiUrl, { // Use the full URL here
-    credentials: 'include', // Important if your backend uses cookies/sessions for auth
+  const response = await fetch(projectsApiUrl, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',

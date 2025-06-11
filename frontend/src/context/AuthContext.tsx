@@ -14,7 +14,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkSession = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/profile', {
+      const response = await fetch('http://localhost:4000/api/projects', {
         credentials: 'include',
       });
 

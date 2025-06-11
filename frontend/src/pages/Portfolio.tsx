@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
-import "./Profile.css";
+import "./Portfolio.css";
 import { useProfileQuery } from "../hooks/useProfileQuery";
 import { useProjectQuery, Project } from "../hooks/useProjectQuery";
 import { useProjectScanQuery, Scan } from "../hooks/useProjectScanQuery";
 import { useScanXMLQuery } from "../hooks/useScanXMLQuery";
-import DetektTable from "../components/DetektTable";
 import { useSonarQubeQuery } from "../hooks/useSonarQubeQuery";
+import DetektTable from "../components/DetektTable";
 import SonarQubeTable from "../components/SonarQubeTable";
+import AnalyticsTab from "../components/AnalyticsTab";
 
-const Profile: React.FC = () => {
+const Portfolio: React.FC = () => {
   // Data fetching hooks
   const {
     data: user,
@@ -23,9 +24,9 @@ const Profile: React.FC = () => {
   } = useProjectQuery();
 
   // State management
-  const [activeTab, setActiveTab] = useState<"projects" | "scans" | "reports">(
-    "projects"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "projects" | "scans" | "reports" | "analytics"
+  >("projects");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
   );
@@ -66,11 +67,10 @@ const Profile: React.FC = () => {
       return (
         new Intl.DateTimeFormat(undefined, {
           year: "numeric",
-          day: "numeric",
           month: "short",
+          day: "numeric",
           hour: "2-digit",
           minute: "2-digit",
-          hour12: false,
           timeZone: "UTC",
         }).format(new Date(dateString)) + " UTC"
       );
@@ -82,13 +82,13 @@ const Profile: React.FC = () => {
   // Handlers for selecting items
   const handleSelectProject = (projectId: string) => {
     setSelectedProjectId(projectId);
-    setSelectedScanId(null); // Reset scan selection
-    setActiveTab("scans"); // Move to scans tab for better UX
+    setSelectedScanId(null);
+    setActiveTab("scans");
   };
 
   const handleSelectScan = (scanId: string) => {
     setSelectedScanId(scanId);
-    setActiveTab("reports"); // Move to reports tab
+    setActiveTab("reports");
   };
 
   // Main loading and error states for the whole page
@@ -125,8 +125,7 @@ const Profile: React.FC = () => {
       <main className="profile-content">
         <header className="profile-header">
           <h1>
-            Hello <span className="username-highlight">{user.username}</span>
-            !
+            Hello, <span className="username-highlight">{user.username}</span>!
           </h1>
           <p>Here is a summary of your activity and scan reports.</p>
         </header>
@@ -152,19 +151,25 @@ const Profile: React.FC = () => {
           >
             Reports
           </button>
+          <button
+            className={`tab-button ${
+              activeTab === "analytics" ? "active" : ""
+            }`}
+            onClick={() => setActiveTab("analytics")}
+            disabled={!selectedProjectId}
+          >
+            Analytics
+          </button>
         </div>
 
         <div className="tab-content">
-          {/* Projects Tab */}
           {activeTab === "projects" && (
             <div id="projects-section" className="content-section">
               <h2>Your Projects</h2>
               {projectsLoading ? (
                 <p>Loading projects...</p>
               ) : projectsError ? (
-                <p style={{ color: "red" }}>
-                  Error loading projects: {projectsError.message}
-                </p>
+                <p style={{ color: "red" }}>Error: {projectsError.message}</p>
               ) : !projectsData?.projects?.length ? (
                 <p>
                   No projects found. Go to "Scan" to scan your first repository.
@@ -179,7 +184,7 @@ const Profile: React.FC = () => {
                       </div>
                       <div className="repo-card-body">
                         <p>
-                          {" "}
+                          <strong>URL:</strong>{" "}
                           <a
                             href={proj.url}
                             target="_blank"
@@ -208,7 +213,6 @@ const Profile: React.FC = () => {
             </div>
           )}
 
-          {/* Scans Tab */}
           {activeTab === "scans" && (
             <div id="scans-section" className="content-section">
               {!selectedProjectId ? (
@@ -224,25 +228,33 @@ const Profile: React.FC = () => {
                   {scansLoading ? (
                     <p>Loading scans...</p>
                   ) : scansError ? (
-                    <p style={{ color: "red" }}>
-                      Error loading scans: {scansError.message}
-                    </p>
+                    <p style={{ color: "red" }}>Error: {scansError.message}</p>
                   ) : !scansData?.scans?.length ? (
                     <p>No scans recorded for this project yet.</p>
                   ) : (
                     <div className="scan-list">
                       <div className="scan-list-header">
-                        <span>Scan ID</span>
                         <span>Scan Date</span>
+                        <span className="issues-column">Sonar Issues</span>
+                        <span className="issues-column">Detekt Issues</span>
                         <span>Actions</span>
                       </div>
                       {scansData.scans.map((scan: Scan) => (
                         <div className="scan-item" key={scan.id}>
-                          <span data-label="Scan ID">
-                            {scan.id}
-                          </span>
                           <span data-label="Date">
                             {formatUtcDate(scan.detectedAt)}
+                          </span>
+                          <span
+                            data-label="Sonar Issues"
+                            className="issues-column"
+                          >
+                            {scan.sonar_issue_count}
+                          </span>
+                          <span
+                            data-label="Detekt Issues"
+                            className="issues-column"
+                          >
+                            {scan.detekt_issue_count}
                           </span>
                           <span data-label="Actions">
                             <button
@@ -261,7 +273,6 @@ const Profile: React.FC = () => {
             </div>
           )}
 
-          {/* Reports Tab */}
           {activeTab === "reports" && (
             <div id="reports-section" className="content-section">
               {!selectedScanId ? (
@@ -275,31 +286,28 @@ const Profile: React.FC = () => {
                     </span>
                   </h2>
 
-                  {/* Detekt Results */}
                   <div className="report-container">
                     <h3>Detekt Analysis</h3>
                     {scanXMLLoading ? (
                       <p>Loading Detekt results...</p>
                     ) : scanXMLError ? (
                       <p style={{ color: "red" }}>
-                        Error loading Detekt results: {scanXMLError.message}
+                        Error: {scanXMLError.message}
                       </p>
                     ) : scanXML ? (
                       <DetektTable xml={scanXML} />
                     ) : (
-                      <p>No Detekt XML data available for this scan.</p>
+                      <p>No Detekt data available for this scan.</p>
                     )}
                   </div>
 
-                  {/* SonarQube Results */}
                   <div className="report-container">
                     <h3>SonarQube Analysis</h3>
                     {sonarQubeLoading ? (
                       <p>Loading SonarQube results...</p>
                     ) : sonarQubeError ? (
                       <p style={{ color: "red" }}>
-                        Error loading SonarQube results:{" "}
-                        {sonarQubeError.message}
+                        Error: {sonarQubeError.message}
                       </p>
                     ) : sonarQubeResults ? (
                       <SonarQubeTable sonarData={sonarQubeResults} />
@@ -311,10 +319,20 @@ const Profile: React.FC = () => {
               )}
             </div>
           )}
+
+          {activeTab === "analytics" && (
+            <div id="analytics-section" className="content-section">
+              {!selectedProjectId ? (
+                <p>Please select a project to view its analytics.</p>
+              ) : (
+                <AnalyticsTab projectId={selectedProjectId} />
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>
   );
 };
 
-export default Profile;
+export default Portfolio;

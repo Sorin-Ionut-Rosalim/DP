@@ -233,7 +233,7 @@
   }
 
   .scan-list-header {
-    display: none; /* Hide header on mobile, use data-labels */
+    display: none;
   }
 
   .scan-item {
@@ -285,4 +285,23 @@
   .repo-list {
     grid-template-columns: 1fr; /* Single column on mobile */
   }
+}
+
+.scan-list-header {
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+}
+
+.scan-item {
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+}
+
+.issues-column {
+    text-align: center;
+    font-weight: 500;
+}
+
+.scan-item span.issues-column::before {
+    content: attr(data-label);
+    font-weight: bold;
+    padding-right: 1rem;
 }

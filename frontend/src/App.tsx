@@ -3,7 +3,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
 import Scan from './pages/Scan';
-import Profile from './pages/Profile';
+import Portfolio from './pages/Portfolio';
 import PrivateRoute from './components/PrivateRoute';
 import NotFound from './pages/NotFound';
 
@@ -20,7 +20,7 @@ const App: React.FC = () => {
 
         {/* Protected routes */}
         <Route path="/home" element={ <PrivateRoute> <Home /> </PrivateRoute> }/>
-        <Route path="/profile" element={ <PrivateRoute> <Profile />  </PrivateRoute> } />
+        <Route path="/portfolio" element={ <PrivateRoute> <Portfolio />  </PrivateRoute> } />
         <Route path="/scan" element={ <PrivateRoute> <Scan /> </PrivateRoute> } />
 
         {/* 404 handling */}

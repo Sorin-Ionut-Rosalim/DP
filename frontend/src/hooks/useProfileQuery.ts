@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 
-// Schema matches: { id: string, username: string }
 const userResponseSchema = z.object({
   id: z.string(),
   username: z.string(),
@@ -10,7 +9,7 @@ const userResponseSchema = z.object({
 export type User = z.infer<typeof userResponseSchema>;
 
 async function fetchProfile(): Promise<User> {
-  const response = await fetch('http://localhost:4000/api/profile', {
+  const response = await fetch('http://localhost:4000/api/portfolio', {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
