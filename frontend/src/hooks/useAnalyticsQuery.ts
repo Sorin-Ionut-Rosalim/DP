@@ -8,6 +8,7 @@ const TrendDataSchema = z.object({
   detected_at: z.string().transform((date) => new Date(date)),
   maintainability_rating: z.number().nullable(),
   cognitive_complexity: z.number().nullable(),
+  lines_of_code: z.number().nullable(),
   total_detekt_issues: z.number(),
   total_sonar_issues: z.number(),
   blocker_issues: z.number(),
@@ -31,9 +32,16 @@ const LatestScanDistributionSchema = z.object({
   code_smells: z.number(),
 });
 
+const LatestDetektDistributionSchema = z.object({
+  errors: z.number(),
+  warnings: z.number(),
+  infos: z.number(),
+});
+
 const AnalyticsResponseSchema = z.object({
   trend_data: z.array(TrendDataSchema),
   latest_scan_data: LatestScanDistributionSchema,
+  latest_detekt_distribution: LatestDetektDistributionSchema,
   latest_sonar_rules: z.array(RuleBreakdownSchema),
   latest_detekt_rules: z.array(RuleBreakdownSchema),
   latest_noisy_files: z.array(FileBreakdownSchema),

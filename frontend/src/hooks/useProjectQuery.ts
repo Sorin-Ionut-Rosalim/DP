@@ -10,7 +10,8 @@ const projectSchema = z.object({
 });
 
 const projectsResponseSchema = z.object({
-  projects: z.array(projectSchema)
+  projects: z.array(projectSchema),
+  totalScans: z.number().int().nonnegative()
 });
 
 export type Project = z.infer<typeof projectSchema>;

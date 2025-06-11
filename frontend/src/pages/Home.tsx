@@ -69,6 +69,8 @@ const Home: React.FC = () => {
   } = useProjectQuery();
 
   const totalProjects = projectsData?.projects?.length ?? 0;
+  const totalScans = projectsData?.totalScans ?? 0;
+
   const lastScanDate = useMemo(() => {
     if (!projectsData?.projects || projectsData.projects.length === 0)
       return "N/A";
@@ -155,7 +157,7 @@ const Home: React.FC = () => {
             </div>
             <div className="stat-info">
               <span className="stat-title">Total Scans</span>
-              <span className="stat-value">0</span> {/* Placeholder */}
+              <span className="stat-value">{totalScans}</span>
             </div>
           </div>
           <div className="stat-card">

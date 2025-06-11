@@ -74,6 +74,7 @@ type TrendData struct {
 	DetectedAt            time.Time `json:"detected_at"`
 	MaintainabilityRating *int      `json:"maintainability_rating"`
 	CognitiveComplexity   *int      `json:"cognitive_complexity"`
+	LinesOfCode           *int      `json:"lines_of_code"`
 	TotalDetektIssues     int       `json:"total_detekt_issues"`
 	TotalSonarIssues      int       `json:"total_sonar_issues"`
 	BlockerIssues         int       `json:"blocker_issues"`
@@ -93,12 +94,18 @@ type LatestScanDistribution struct {
 	Vulnerabilities int `json:"vulnerabilities"`
 	CodeSmells      int `json:"code_smells"`
 }
+type LatestDetektDistribution struct {
+	Errors   int `json:"errors"`
+	Warnings int `json:"warnings"`
+	Infos    int `json:"infos"`
+}
 type AnalyticsResponse struct {
-	TrendData         []TrendData            `json:"trend_data"`
-	LatestScanData    LatestScanDistribution `json:"latest_scan_data"`
-	LatestSonarRules  []RuleBreakdown        `json:"latest_sonar_rules"`
-	LatestDetektRules []RuleBreakdown        `json:"latest_detekt_rules"`
-	LatestNoisyFiles  []FileBreakdown        `json:"latest_noisy_files"`
+	TrendData                []TrendData              `json:"trend_data"`
+	LatestScanData           LatestScanDistribution   `json:"latest_scan_data"`
+	LatestDetektDistribution LatestDetektDistribution `json:"latest_detekt_distribution"`
+	LatestSonarRules         []RuleBreakdown          `json:"latest_sonar_rules"`
+	LatestDetektRules        []RuleBreakdown          `json:"latest_detekt_rules"`
+	LatestNoisyFiles         []FileBreakdown          `json:"latest_noisy_files"`
 }
 
 func main() {
@@ -635,6 +642,15 @@ func waitForSonarQubeAnalysis(projectKey, sonarHostURL, sonarToken string, timeo
 func listProjectsHandler(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	ctx := context.Background()
+
+	// Get total scan count for the user
+	var totalScans int
+	err := dbPool.QueryRow(ctx, "SELECT COUNT(*) FROM scans WHERE user_id = $1", userID.(string)).Scan(&totalScans)
+	if err != nil {
+		log.Printf("Could not fetch total scans for user %s: %v", userID.(string), err)
+		totalScans = 0 // Default to 0 on error, but don't fail the request
+	}
+
 	rows, err := dbPool.Query(ctx, `
         SELECT p.id, p.name, p.url, COALESCE(MAX(s.started_at), NULL) AS last_scan
         FROM projects p
@@ -664,7 +680,7 @@ func listProjectsHandler(c *gin.Context) {
 			"lastScan": lastScan,
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"projects": projects})
+	c.JSON(http.StatusOK, gin.H{"projects": projects, "totalScans": totalScans})
 }
 
 func listProjectScansHandler(c *gin.Context) {
@@ -763,7 +779,7 @@ func getProjectAnalyticsHandler(c *gin.Context) {
 	trendQuery := `
 		SELECT
 			s.id as scan_id, s.started_at as detected_at,
-			s.maintainability_rating, s.cognitive_complexity,
+			s.maintainability_rating, s.cognitive_complexity, s.lines_of_code,
 			(COALESCE(dr.error_issues, 0) + COALESCE(dr.warning_issues, 0) + COALESCE(dr.info_issues, 0)) as total_detekt_issues,
 			(COALESCE(sq.blocker_issues, 0) + COALESCE(sq.critical_issues, 0) + COALESCE(sq.major_issues, 0) + COALESCE(sq.minor_issues, 0) + COALESCE(sq.info_issues, 0)) as total_sonar_issues,
             COALESCE(sq.blocker_issues, 0) as blocker_issues,
@@ -784,7 +800,7 @@ func getProjectAnalyticsHandler(c *gin.Context) {
 	for rows.Next() {
 		var scan TrendData
 		err := rows.Scan(
-			&scan.ScanID, &scan.DetectedAt, &scan.MaintainabilityRating, &scan.CognitiveComplexity,
+			&scan.ScanID, &scan.DetectedAt, &scan.MaintainabilityRating, &scan.CognitiveComplexity, &scan.LinesOfCode,
 			&scan.TotalDetektIssues, &scan.TotalSonarIssues,
 			&scan.BlockerIssues, &scan.CriticalIssues, &scan.MajorIssues,
 		)
@@ -819,6 +835,12 @@ func getProjectAnalyticsHandler(c *gin.Context) {
 	}
 	if latestDetektXml.Valid {
 		response.LatestDetektRules, _ = parseDetektReportForTop5(latestDetektXml.String)
+		detektCounts, detektParseErr := parseDetektReport(latestDetektXml.String)
+		if detektParseErr == nil {
+			response.LatestDetektDistribution.Errors = detektCounts.ErrorIssues
+			response.LatestDetektDistribution.Warnings = detektCounts.WarningIssues
+			response.LatestDetektDistribution.Infos = detektCounts.InfoIssues
+		}
 	}
 
 	c.JSON(http.StatusOK, response)

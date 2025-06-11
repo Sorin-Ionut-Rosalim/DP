@@ -40,7 +40,7 @@ const Register: React.FC = () => {
       <div className="auth-card">
         <div className="auth-header">
             <h2 className="auth-title">Create an Account</h2>
-            <p className="auth-subtitle">Get started with KotlinSonar.</p>
+            <p className="auth-subtitle">Get started with MultiScanner.</p>
         </div>
         
         {/* Display server or validation errors */}
