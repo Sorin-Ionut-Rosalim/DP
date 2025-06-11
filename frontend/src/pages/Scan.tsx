@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useScanMutation } from "../hooks/useScanMutation";
@@ -6,7 +6,6 @@ import "./Scan.css";
 import DetektTable from "../components/DetektTable";
 import SonarQubeTable from "../components/SonarQubeTable";
 
-// SVG Icons
 const GitIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -31,21 +30,26 @@ const Scan: React.FC = () => {
   const [detektXML, setDetektXML] = useState<string | null>(null);
   const [sonarQubeData, setSonarQubeData] = useState<any>(null);
 
-  const { mutateAsync, isPending, error } = useScanMutation();
+  // Manually control a single loading state for the entire process.
+  const [isScanning, setIsScanning] = useState(false);
+
+  const { mutateAsync, error: mutationError } = useScanMutation();
 
   const initialScanStartedRef = useRef(false);
 
-  const startScan = useCallback(async (urlToScan: string) => {
-    if (!urlToScan.trim() || isPending) return;
+  const startScan = useCallback(
+    async (urlToScan: string) => {
+      // Prevent starting a new scan if one is already in progress.
+      if (isScanning || !urlToScan.trim()) return;
 
-    setDetektXML(null);
-    setSonarQubeData(null);
-
-    try {
-      // Initiate the scan via the mutation hook.
-      const { scanId } = await mutateAsync({ repoUrl: urlToScan });
+      // Set loading to true at the very beginning.
+      setIsScanning(true);
+      setDetektXML(null);
+      setSonarQubeData(null);
 
       try {
+        const { scanId } = await mutateAsync({ repoUrl: urlToScan });
+
         const detektRes = await fetch(
           `http://localhost:4000/api/scan/${scanId}/detekt`,
           { credentials: "include" }
@@ -58,12 +62,7 @@ const Scan: React.FC = () => {
             detektRes.statusText
           );
         }
-      } catch (detektError) {
-        console.error("Error fetching Detekt results:", detektError);
-      }
 
-      // Fetch SonarQube results
-      try {
         const sonarRes = await fetch(
           `http://localhost:4000/api/scan/${scanId}/sonarqube`,
           { credentials: "include" }
@@ -76,32 +75,30 @@ const Scan: React.FC = () => {
             sonarRes.statusText
           );
         }
-      } catch (sonarError) {
-        console.error("Error fetching SonarQube results:", sonarError);
+      } catch (e) {
+        console.error("An error occurred during the scan process:", e);
+      } finally {
+        setIsScanning(false);
       }
-    } catch (mutationError) {
-      console.error("Scan mutation failed:", mutationError);
-    }
-  }, [isPending, mutateAsync]);
+    },
+    [isScanning, mutateAsync]
+  );
 
-  // Effect to automatically start a scan if a repoUrl is passed in the navigation state.
   useEffect(() => {
     const urlFromState = location.state?.repoUrl;
-    // Only run if a URL is passed and the initial scan ref is false.
     if (urlFromState && !initialScanStartedRef.current) {
-      // Set the ref to true immediately to prevent re-runs.
       initialScanStartedRef.current = true;
-      // Clear the state from history to prevent re-scanning on refresh.
       window.history.replaceState({}, document.title);
       startScan(urlFromState);
     }
-  }, [location.state?.repoUrl, startScan]); // Dependency on the memoized startScan
+  }, [location.state?.repoUrl, startScan]);
 
-  // Handler for the form submission.
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     startScan(repoUrl);
   };
+
+  const error = mutationError;
 
   return (
     <div className="page-container">
@@ -124,27 +121,27 @@ const Scan: React.FC = () => {
                 placeholder="e.g., https://github.com/user/repo"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
-                disabled={isPending}
+                disabled={isScanning}
               />
             </div>
             <button
               type="submit"
               className="auth-button"
-              disabled={isPending || !repoUrl.trim()}
+              disabled={isScanning || !repoUrl.trim()}
             >
-              {isPending ? "Scanning..." : "Scan Repository"}
+              {isScanning ? "Scanning..." : "Scan Repository"}
             </button>
           </form>
         </div>
 
-        {isPending && (
+        {isScanning && (
           <div className="status-container-scan">
             <LoadingSpinner />
             <p>Scan in progress... This may take several minutes.</p>
           </div>
         )}
 
-        {error && (
+        {error && !isScanning && (
           <div className="status-container-scan error">
             <p>
               <strong>Scan Failed:</strong> {error.message}
@@ -152,8 +149,7 @@ const Scan: React.FC = () => {
           </div>
         )}
 
-        {/* Results Section */}
-        {(detektXML || sonarQubeData) && !isPending && (
+        {(detektXML || sonarQubeData) && !isScanning && (
           <div className="results-wrapper">
             <h2>Scan Results</h2>
             {detektXML && (
