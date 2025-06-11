@@ -13,6 +13,12 @@ if [[ -z "$SONAR_PROJECT_KEY" ]]; then
   exit 1
 fi
 
+# Check if SONAR_ANALYSIS_VERSION is provided
+if [[ -z "$SONAR_ANALYSIS_VERSION" ]]; then
+  echo "Error: SONAR_ANALYSIS_VERSION environment variable not set."
+  exit 1
+fi
+
 # Check if SONAR_TOKEN is provided
 if [[ -z "$SONAR_TOKEN" ]]; then
   echo "Warning: SONAR_TOKEN environment variable not set."
@@ -31,8 +37,8 @@ echo "Running detekt static analysis..."
 detekt --input "$WORKDIR" \
   --report xml:/data/detekt-report.xml \
   --parallel \
-  --excludes '**/build/**,**/generated/**,**/out/**' \
-  || true
+  --excludes '**/build/**,**/generated/**,**/out/**' ||
+  true
 
 echo "Running SonarScanner analysis..."
 cd "$WORKDIR"
@@ -41,6 +47,7 @@ cd "$WORKDIR"
 SCANNER_CMD="sonar-scanner \
   -Dsonar.projectBaseDir=$WORKDIR \
   -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+  -Dsonar.projectVersion=$SONAR_ANALYSIS_VERSION \
   -Dsonar.sources=. \
   -Dsonar.host.url=$SONAR_HOST_URL"
 

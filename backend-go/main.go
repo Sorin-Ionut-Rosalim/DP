@@ -401,7 +401,7 @@ func runScanHandler(c *gin.Context) {
 
 	projectKeyForSonar := fmt.Sprintf("proj_%s_%s", userID.(string), projectID)
 
-	detektXML, sonarIssuesJSON, sonarMeasuresJSON, err := runAnalysisContainerAndFetchResults(req.RepoURL, projectKeyForSonar)
+	detektXML, sonarIssuesJSON, sonarMeasuresJSON, err := runAnalysisContainerAndFetchResults(req.RepoURL, projectKeyForSonar, scanID)
 	if err != nil {
 		log.Printf("Scan failed for %s: %v", req.RepoURL, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Analysis failed", "details": err.Error()})
@@ -453,7 +453,7 @@ func runScanHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"scanId": scanID})
 }
 
-func runAnalysisContainerAndFetchResults(repoURL, sonarProjectKey string) (string, string, string, error) {
+func runAnalysisContainerAndFetchResults(repoURL, sonarProjectKey, scanID string) (string, string, string, error) {
 	tempDir, err := os.MkdirTemp("", "scan-")
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to create temp dir: %w", err)
@@ -473,13 +473,14 @@ func runAnalysisContainerAndFetchResults(repoURL, sonarProjectKey string) (strin
 	}
 	sonarToken := os.Getenv("SONAR_TOKEN")
 
-	log.Printf("Starting analysis container for project key: %s", sonarProjectKey)
+	log.Printf("Starting analysis container for project key: %s, version: %s", sonarProjectKey, scanID)
 
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: "repo-analyzer:latest",
 		Env: []string{
 			fmt.Sprintf("REPO_URL=%s", repoURL),
 			fmt.Sprintf("SONAR_PROJECT_KEY=%s", sonarProjectKey),
+			fmt.Sprintf("SONAR_ANALYSIS_VERSION=%s", scanID),
 			fmt.Sprintf("SONAR_HOST_URL=%s", sonarScannerHostURL),
 			fmt.Sprintf("SONAR_TOKEN=%s", sonarToken),
 		},
