@@ -10,7 +10,7 @@ const projectSchema = z.object({
 });
 
 const projectsResponseSchema = z.object({
-  projects: z.array(projectSchema),
+  projects: z.array(projectSchema).nullable().transform(p => p ?? []),
   totalScans: z.number().int().nonnegative()
 });
 
@@ -46,8 +46,8 @@ async function fetchProjects(): Promise<ProjectsResponse> {
     }
     // Handle potential CORS errors more explicitly if they occur
     if (response.status === 0 || (response.type === 'opaque' || response.type === 'opaqueredirect')) {
-        console.error(`[useProjectQuery] Network Error or CORS issue trying to reach ${projectsApiUrl}. Ensure backend CORS is configured if domains/ports differ.`);
-        throw new Error(`Network Error or CORS issue when fetching projects. Backend at ${projectsApiUrl} might not be reachable or CORS is misconfigured.`);
+      console.error(`[useProjectQuery] Network Error or CORS issue trying to reach ${projectsApiUrl}. Ensure backend CORS is configured if domains/ports differ.`);
+      throw new Error(`Network Error or CORS issue when fetching projects. Backend at ${projectsApiUrl} might not be reachable or CORS is misconfigured.`);
     }
     throw new Error(errorMessage);
   }
@@ -63,9 +63,9 @@ async function fetchProjects(): Promise<ProjectsResponse> {
     if (error instanceof z.ZodError) {
       console.error(`[useProjectQuery] Zod Validation failed for data from ${projectsApiUrl}:`, error.issues);
       try {
-          console.error('[useProjectQuery] Data that failed Zod validation:', JSON.parse(responseBodyText));
+        console.error('[useProjectQuery] Data that failed Zod validation:', JSON.parse(responseBodyText));
       } catch {
-          console.error('[useProjectQuery] Data that failed Zod validation (raw text):', responseBodyText);
+        console.error('[useProjectQuery] Data that failed Zod validation (raw text):', responseBodyText);
       }
       throw new Error('Invalid projects data structure received from server. Check console for Zod error details.');
     }

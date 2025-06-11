@@ -22,8 +22,8 @@ const RuleBreakdownSchema = z.object({
 });
 
 const FileBreakdownSchema = z.object({
-    file_name: z.string(),
-    issue_count: z.number(),
+  file_name: z.string(),
+  issue_count: z.number(),
 });
 
 const LatestScanDistributionSchema = z.object({
@@ -39,12 +39,12 @@ const LatestDetektDistributionSchema = z.object({
 });
 
 const AnalyticsResponseSchema = z.object({
-  trend_data: z.array(TrendDataSchema),
+  trend_data: z.array(TrendDataSchema).nullable().transform(val => val ?? []),
   latest_scan_data: LatestScanDistributionSchema,
   latest_detekt_distribution: LatestDetektDistributionSchema,
-  latest_sonar_rules: z.array(RuleBreakdownSchema),
-  latest_detekt_rules: z.array(RuleBreakdownSchema),
-  latest_noisy_files: z.array(FileBreakdownSchema),
+  latest_sonar_rules: z.array(RuleBreakdownSchema).nullable().transform(val => val ?? []),
+  latest_detekt_rules: z.array(RuleBreakdownSchema).nullable().transform(val => val ?? []),
+  latest_noisy_files: z.array(FileBreakdownSchema).nullable().transform(val => val ?? []),
 });
 
 export type AnalyticsData = z.infer<typeof AnalyticsResponseSchema>;
@@ -53,17 +53,17 @@ export type AnalyticsData = z.infer<typeof AnalyticsResponseSchema>;
 
 async function fetchAnalyticsData(projectId: string | null): Promise<AnalyticsData | null> {
   if (!projectId) return null;
-  
+
   const response = await fetch(`http://localhost:4000/api/projects/${projectId}/analytics`, {
-      credentials: 'include',
+    credentials: 'include',
   });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch analytics data (HTTP ${response.status})`);
   }
-  
+
   const data = await response.json();
-  
+
   // Validate the data structure against our schema
   const parsed = AnalyticsResponseSchema.safeParse(data);
   if (!parsed.success) {

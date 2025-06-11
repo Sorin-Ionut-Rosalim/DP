@@ -94,6 +94,7 @@ type LatestScanDistribution struct {
 	Vulnerabilities int `json:"vulnerabilities"`
 	CodeSmells      int `json:"code_smells"`
 }
+
 type LatestDetektDistribution struct {
 	Errors   int `json:"errors"`
 	Warnings int `json:"warnings"`
@@ -665,7 +666,7 @@ func listProjectsHandler(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	var projects []map[string]interface{}
+	projects := make([]map[string]interface{}, 0)
 	for rows.Next() {
 		var id, name, url string
 		var lastScan *time.Time
@@ -713,7 +714,7 @@ func listProjectScansHandler(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	scans := []map[string]interface{}{}
+	scans := make([]map[string]interface{}, 0)
 	for rows.Next() {
 		var id string
 		var startedAt time.Time
@@ -774,7 +775,12 @@ func getSonarQubeIssuesByScanHandler(c *gin.Context) {
 func getProjectAnalyticsHandler(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	projectID := c.Param("id")
-	var response AnalyticsResponse
+	response := AnalyticsResponse{
+		TrendData:         make([]TrendData, 0),
+		LatestSonarRules:  make([]RuleBreakdown, 0),
+		LatestDetektRules: make([]RuleBreakdown, 0),
+		LatestNoisyFiles:  make([]FileBreakdown, 0),
+	}
 
 	trendQuery := `
 		SELECT

@@ -184,7 +184,6 @@ const Portfolio: React.FC = () => {
                       </div>
                       <div className="repo-card-body">
                         <p>
-                          <strong>URL:</strong>{" "}
                           <a
                             href={proj.url}
                             target="_blank"

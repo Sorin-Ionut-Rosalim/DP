@@ -1,6 +1,6 @@
-import React, { useContext } from "react";
+import React from "react";
 import { NavLink } from "react-router-dom"; // Use NavLink for active styling
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { useLogoutMutation } from "../hooks/useLogoutMutation";
 import "./Sidebar.css";
 
@@ -77,21 +77,17 @@ const LogoutIcon = () => (
 );
 
 const Sidebar: React.FC = () => {
-  const authContext = useContext(AuthContext);
+  const authContext = useAuth();
   const logoutMutation = useLogoutMutation();
 
   if (!authContext) {
     throw new Error("PrivateRoute must be used within an AuthProvider");
   }
 
-  const { isAuthenticated, setIsAuthenticated } = authContext;
+  const { isAuthenticated } = authContext;
 
   const handleLogout = () => {
-    logoutMutation.mutate(undefined, {
-      onSettled: () => {
-        setIsAuthenticated(false);
-      },
-    });
+    logoutMutation.mutate();
   };
 
   if (!isAuthenticated) return null;
