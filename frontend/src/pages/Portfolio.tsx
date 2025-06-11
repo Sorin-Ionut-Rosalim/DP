@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import "./Portfolio.css";
 import { useProfileQuery } from "../hooks/useProfileQuery";
@@ -11,7 +11,28 @@ import DetektTable from "../components/DetektTable";
 import SonarQubeTable from "../components/SonarQubeTable";
 import AnalyticsTab from "../components/AnalyticsTab";
 
+// New SVG Icon for the "New Scan" button
+const RescanIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+    <path d="M21 3v5h-5" />
+    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+    <path d="M3 21v-5h5" />
+  </svg>
+);
+
 const Portfolio: React.FC = () => {
+  const navigate = useNavigate();
   const location = useLocation();
   const defaultProjectId = location.state?.defaultProjectId;
 
@@ -91,6 +112,10 @@ const Portfolio: React.FC = () => {
   const handleSelectScan = (scanId: string) => {
     setSelectedScanId(scanId);
     setActiveTab("reports");
+  };
+
+  const handleNewScan = (repoUrl: string) => {
+    navigate("/scan", { state: { repoUrl } });
   };
 
   // Main loading and error states for the whole page
@@ -206,6 +231,15 @@ const Portfolio: React.FC = () => {
                         >
                           View Scans
                         </button>
+
+                        <button
+                          className="action-button secondary"
+                          onClick={() => handleNewScan(proj.url)}
+                          title="Run a new scan on this repository"
+                        >
+                          <RescanIcon />
+                          Scan Again
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -282,9 +316,7 @@ const Portfolio: React.FC = () => {
                 <>
                   <h2>
                     Reports for Scan{" "}
-                    <span className="username-highlight">
-                      {selectedScanId}
-                    </span>
+                    <span className="username-highlight">{selectedScanId}</span>
                   </h2>
 
                   <div className="report-container">

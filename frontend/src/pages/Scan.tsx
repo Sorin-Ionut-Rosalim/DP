@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useScanMutation } from "../hooks/useScanMutation";
 import "./Scan.css";
@@ -25,24 +26,22 @@ const GitIcon = () => (
 const LoadingSpinner = () => <div className="spinner"></div>;
 
 const Scan: React.FC = () => {
-  const [repoUrl, setRepoUrl] = useState("");
+  const location = useLocation();
+  const [repoUrl, setRepoUrl] = useState(location.state?.repoUrl || "");
   const [detektXML, setDetektXML] = useState<string | null>(null);
   const [sonarQubeData, setSonarQubeData] = useState<any>(null);
 
   const { mutateAsync, isPending, error } = useScanMutation();
 
-  const handleScan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!repoUrl.trim()) return;
+  const startScan = async (urlToScan: string) => {
+    if (!urlToScan.trim() || isPending) return;
 
-    // Reset previous results
     setDetektXML(null);
     setSonarQubeData(null);
 
     try {
-      const { scanId } = await mutateAsync({ repoUrl });
+      const { scanId } = await mutateAsync({ repoUrl: urlToScan });
 
-      // Fetch Detekt XML
       try {
         const detektRes = await fetch(
           `http://localhost:4000/api/scan/${scanId}/detekt`,
@@ -60,7 +59,6 @@ const Scan: React.FC = () => {
         console.error("Error fetching Detekt results:", detektError);
       }
 
-      // Fetch SonarQube JSON
       try {
         const sonarRes = await fetch(
           `http://localhost:4000/api/scan/${scanId}/sonarqube`,
@@ -78,9 +76,23 @@ const Scan: React.FC = () => {
         console.error("Error fetching SonarQube results:", sonarError);
       }
     } catch (mutationError) {
-      // Error from useScanMutation is already handled by the `error` property.
       console.error("Scan mutation failed:", mutationError);
     }
+  };
+
+  // Effect to automatically start a scan if a repoUrl is passed in the navigation state.
+  useEffect(() => {
+    const urlFromState = location.state?.repoUrl;
+    if (urlFromState) {
+      // Clear the state to prevent re-scanning on refresh
+      window.history.replaceState({}, document.title);
+      startScan(urlFromState);
+    }
+  }, [location.state?.repoUrl]);
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    startScan(repoUrl);
   };
 
   return (
@@ -93,7 +105,7 @@ const Scan: React.FC = () => {
         </header>
 
         <div className="scan-card">
-          <form onSubmit={handleScan} className="scan-form">
+          <form onSubmit={handleFormSubmit} className="scan-form">
             <div className="input-group">
               <span className="input-icon">
                 <GitIcon />
