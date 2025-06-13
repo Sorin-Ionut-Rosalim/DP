@@ -60,7 +60,7 @@
 .enhanced-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 800px;
+    table-layout: fixed;
 }
 
 .enhanced-table th {
@@ -75,9 +75,19 @@
     cursor: pointer;
     user-select: none;
     border-bottom: 2px solid #e2e8f0;
+    /* Keep headers on one line */
     white-space: nowrap;
     position: relative;
 }
+
+/* Define column widths for a balanced layout */
+.enhanced-table th:nth-child(1) { width: 35%; } /* File */
+.enhanced-table th:nth-child(2) { width: 6%; }  /* Line */
+.enhanced-table th:nth-child(3) { width: 7%; }  /* Column */
+.enhanced-table th:nth-child(4) { width: 15%; } /* Rule */
+.enhanced-table th:nth-child(5) { width: 10%; } /* Severity */
+.enhanced-table th:nth-child(6) { width: 27%; } /* Message */
+
 
 .enhanced-table th:hover {
     background-color: #f1f5f9;
@@ -109,6 +119,10 @@
     border-bottom: 1px solid #f1f5f9;
     color: #1e293b;
     vertical-align: top;
+    
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-all;
 }
 
 .enhanced-table tbody tr:last-child td {
@@ -152,30 +166,31 @@
     color: #1e40af;
 }
 
-[data-label] {
-  display: table-cell;
-}
-
 @media (max-width: 900px) {
+    /* Hide the original table header, as it won't fit */
     .enhanced-table thead {
         display: none;
     }
 
+    /* Change table elements to block to allow them to stack vertically */
     .enhanced-table, .enhanced-table tbody, .enhanced-table tr, .enhanced-table td {
         display: block;
         width: 100%;
     }
 
+    /* Style each row as a card for better readability on small screens */
     .enhanced-table tr {
         margin-bottom: 1.5rem;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
+    /* Adjust cell padding and layout */
     .enhanced-table td {
         display: flex;
-        justify-content: space-between;
+        justify-content: space-between; /* Aligns the label and value */
         text-align: right;
         padding: 0.75rem 1rem;
         border-bottom: 1px dotted #e2e8f0;
@@ -185,11 +200,17 @@
         border-bottom: none;
     }
 
+    /* Use the data-label attribute to create a pseudo-header for each cell */
     .enhanced-table td::before {
         content: attr(data-label);
         font-weight: bold;
         text-align: left;
         color: #475569;
         margin-right: 1rem;
+    }
+
+    /* Ensure long content wraps properly */
+    .enhanced-table td, .enhanced-table td > span {
+        word-break: break-all;
     }
 }
