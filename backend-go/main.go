@@ -467,11 +467,13 @@ func runAnalysisContainerAndFetchResults(repoURL, sonarProjectKey, scanID string
 	}
 	defer cli.Close()
 
-	sonarScannerHostURL := os.Getenv("SONAR_HOST_URL")
+	sonarScannerHostURL := os.Getenv("SONAR_SCANNER_HOST_URL")
+
 	if sonarScannerHostURL == "" {
 		sonarScannerHostURL = "http://host.docker.internal:9000"
 	}
-	sonarToken := os.Getenv("SONAR_TOKEN")
+
+	sonarToken := os.Getenv("SONAR_LOGIN_TOKEN")
 
 	log.Printf("Starting analysis container for project key: %s, version: %s", sonarProjectKey, scanID)
 
@@ -530,7 +532,7 @@ func runAnalysisContainerAndFetchResults(repoURL, sonarProjectKey, scanID string
 	sonarHostURL := "http://localhost:9000"
 	apiToken := os.Getenv("SONAR_API_TOKEN")
 	if apiToken == "" {
-		log.Println("Warning: SONAR_API_TOKEN is not set. Falling back to SONAR_TOKEN. This may cause permission issues.")
+		log.Println("Warning: SONAR_API_TOKEN is not set. Falling back to SONAR_API_TOKEN. This may cause permission issues.")
 		apiToken = sonarToken
 	}
 
